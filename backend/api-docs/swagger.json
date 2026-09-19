@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "CloudPhone Widget Backend API",
-    "version": "v1.3.0",
+    "version": "v1.4.0",
     "description": "API for the backend of the custom CloudPhone widget."
   },
   "servers": [
@@ -307,8 +307,166 @@
               }
             }
           },
+          "429": {
+            "description": "Translation API rate or quota limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Translation API connection or response error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "503": {
             "description": "CSV or Translation API is unavailable or invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Translation API timed out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/medicine/recognize": {
+      "post": {
+        "tags": [
+          "Medicine"
+        ],
+        "summary": "Extract visible medicine evidence and find CSV candidates",
+        "operationId": "recognizeMedicineImage",
+        "description": "Accepts one raw JPEG, PNG, or WebP image of at most 5 MiB. Gemini is instructed to transcribe only directly visible OCR text, medicine names, strengths, and pill imprints; it must not identify or guess a medicine. The backend then deterministically searches 42_2.csv. A structured medicine name is usable only when that name is also grounded in the returned visible OCR text. Name or visible-text matches take priority. Appearance-only matching is attempted only when a legible pill imprint was extracted, and requires an exact normalized imprint match. Color and shape alone never select a medicine. Candidate records are translated to English with Google Cloud Translation.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "type": "string",
+                "format": "binary",
+                "maxLength": 5242880
+              }
+            },
+            "image/png": {
+              "schema": {
+                "type": "string",
+                "format": "binary",
+                "maxLength": 5242880
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "type": "string",
+                "format": "binary",
+                "maxLength": 5242880
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Visible evidence and zero or more deterministic CSV candidates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicineImageRecognitionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The image is empty or its bytes do not match the declared format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Image exceeds 5 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content type is not image/jpeg, image/png, or image/webp",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Gemini safety filtering prevented extraction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gemini or Translation API rate or quota limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Gemini or Translation API connection or response error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CSV, Gemini, or Translation API is unavailable, invalid, or not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gemini or Translation API timed out",
             "content": {
               "application/json": {
                 "schema": {
@@ -637,7 +795,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 100,
-            "description": "The licenseNumber from a search result. The backend reloads the source record and does not accept client-supplied medicine fields. This takes priority over automatic matching."
+            "description": "The opaque recordId from a search or recognition result. The backend reloads the source record and does not accept client-supplied medicine fields. This takes priority over automatic matching."
           }
         }
       },
@@ -733,7 +891,7 @@
           },
           "licenseNumber": {
             "type": "string",
-            "description": "License identifier, translated for English display and used as the selected record ID."
+            "description": "License identifier translated for English display. Use recordId, not this display value, as selectedMedicineId."
           },
           "displayName": {
             "type": "string",
@@ -887,6 +1045,136 @@
           "total",
           "recordCount"
         ]
+      },
+      "MedicineImageRecognitionEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text",
+          "medications",
+          "pills"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 6000,
+            "description": "Visible OCR text copied from the image; empty when no text is legible. This is unverified transcription, not confirmed medicine identity."
+          },
+          "medications": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Medicine name directly legible in the image. It is considered for matching only when it also occurs in text."
+                },
+                "strength": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "Strength directly legible near the medicine name; empty when none is legible."
+                }
+              }
+            }
+          },
+          "pills": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "imprint"
+              ],
+              "properties": {
+                "imprint": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "Characters directly visible on one pill side; empty when none are legible."
+                },
+                "color": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "Observed color, or empty when unclear; never sufficient for matching by itself."
+                },
+                "shape": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "Observed shape, or empty when unclear; never sufficient for matching by itself."
+                }
+              }
+            }
+          }
+        }
+      },
+      "MedicineImageRecognitionResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "model",
+          "recognition",
+          "matchStrategy",
+          "source",
+          "records",
+          "total",
+          "recordCount"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "model": {
+            "type": "string",
+            "description": "Gemini model used only to transcribe visible evidence."
+          },
+          "recognition": {
+            "$ref": "#/components/schemas/MedicineImageRecognitionEvidence"
+          },
+          "matchStrategy": {
+            "type": "string",
+            "enum": [
+              "name",
+              "text",
+              "imprint",
+              "none"
+            ],
+            "description": "Deterministic CSV field used to produce candidates. Imprint matching uses an exact normalized visible imprint; color and shape alone are never used."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "42_2.csv"
+            ]
+          },
+          "records": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "$ref": "#/components/schemas/MedicineRecord"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Full deterministic candidate count before the eight-record response limit."
+          },
+          "recordCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of source records loaded from the CSV."
+          }
+        }
       },
       "MedicineLookupQuery": {
         "type": "object",

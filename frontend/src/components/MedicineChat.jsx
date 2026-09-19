@@ -7,12 +7,17 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { chatWithMedicineAssistant } from "../api/medicine.js";
 import { FocusableField } from "./Controls.jsx";
 import "./MedicineChat.css";
 
-const apiBase = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
-const disclaimer =
+const fallbackDisclaimer =
   "AI responses are for reference only. Follow the prescription and package label, and consult a doctor or pharmacist when unsure.";
+const firstSourceImageUrl = (value = "") =>
+  value
+    .split(";;;")
+    .map((item) => item.trim())
+    .find((item) => /^https?:\/\//i.test(item)) || "";
 
 const MedicineChat = forwardRef(function MedicineChat(
   {
@@ -27,6 +32,7 @@ const MedicineChat = forwardRef(function MedicineChat(
   const [question, setQuestion] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [disclaimer, setDisclaimer] = useState(fallbackDisclaimer);
   const [pendingQuestion, setPendingQuestion] = useState("");
   const [focusedId, setFocusedId] = useState("medicine-question");
   const [editingId, setEditingId] = useState(null);
@@ -67,6 +73,18 @@ const MedicineChat = forwardRef(function MedicineChat(
     questionField.click();
   }, []);
 
+  const activateFocused = useCallback(() => {
+    if (focusedId === "medicine-question") {
+      activateQuestion();
+      return;
+    }
+    const target = rootRef.current?.querySelector(
+      `[data-chat-focus="${focusedId}"]`,
+    );
+    if (!target || target.disabled) return;
+    target.click();
+  }, [activateQuestion, focusedId]);
+
   const submitQuestion = useCallback(() => {
     formRef.current?.requestSubmit();
   }, []);
@@ -79,14 +97,39 @@ const MedicineChat = forwardRef(function MedicineChat(
     scroller.scrollBy({ top: direction * distance, behavior: "smooth" });
   }, []);
 
+  const moveFocus = useCallback(
+    (direction) => {
+      setEditingId(null);
+      const elements = [
+        ...(rootRef.current?.querySelectorAll("[data-chat-focus]") || []),
+      ].filter((element) => !element.disabled);
+      if (elements.length <= 1) {
+        scrollConversation(direction);
+        return;
+      }
+      const currentIndex = elements.findIndex(
+        (element) => element.dataset.chatFocus === focusedId,
+      );
+      const startIndex = currentIndex < 0 ? elements.length - 1 : currentIndex;
+      const nextIndex = Math.max(
+        0,
+        Math.min(elements.length - 1, startIndex + direction),
+      );
+      const nextId = elements[nextIndex]?.dataset.chatFocus;
+      if (nextId) selectFocus(nextId);
+    },
+    [focusedId, scrollConversation, selectFocus],
+  );
+
   useImperativeHandle(
     ref,
     () => ({
-      activate: activateQuestion,
+      activate: activateFocused,
       send: submitQuestion,
+      move: moveFocus,
       scroll: scrollConversation,
     }),
-    [activateQuestion, scrollConversation, submitQuestion],
+    [activateFocused, moveFocus, scrollConversation, submitQuestion],
   );
 
   const handleEditingChange = useCallback((id, editing) => {
@@ -110,7 +153,7 @@ const MedicineChat = forwardRef(function MedicineChat(
     onSelectMedicine?.(record);
     setMessages([]);
     setError("");
-    setQuestion("Please explain the appearance information for this medicine.");
+    setQuestion(t("chat.explainAppearance"));
     setEditingId(null);
     selectFocus("medicine-question");
   };
@@ -128,11 +171,24 @@ const MedicineChat = forwardRef(function MedicineChat(
     setError("");
 
     try {
-      const response = await fetch(`${apiBase}/api/medicine/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
+      const recognition = {};
+      const trimmedRecognitionText = recognitionText.trim();
+      const selectedMedicineName =
+        selectedMedicine?.displayName || selectedMedicine?.englishName;
+      if (trimmedRecognitionText) recognition.text = trimmedRecognitionText;
+      if (!selectedMedicine?.recordId && selectedMedicineName) {
+        recognition.medications = [
+          {
+            name: selectedMedicineName,
+            ...(selectedMedicine.strength
+              ? { strength: selectedMedicine.strength }
+              : {}),
+          },
+        ];
+      }
+
+      const data = await chatWithMedicineAssistant(
+        {
           message,
           history: messages
             .slice(-20)
@@ -140,35 +196,10 @@ const MedicineChat = forwardRef(function MedicineChat(
           ...(selectedMedicine?.recordId
             ? { selectedMedicineId: selectedMedicine.recordId }
             : {}),
-          ...(recognitionText.trim()
-            ? { recognition: { text: recognitionText.trim() } }
-            : {}),
-        }),
-      });
-
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error(
-          "The server returned an invalid response. Please try again.",
-        );
-      }
-
-      if (!response.ok || !data.ok) {
-        throw new Error(
-          data.error || "The medicine assistant is temporarily unavailable.",
-        );
-      }
-      if (
-        typeof data.reply?.answer !== "string" ||
-        !Array.isArray(data.reply.warnings) ||
-        !Array.isArray(data.reply.followUpQuestions)
-      ) {
-        throw new Error(
-          "The server returned an invalid response. Please try again.",
-        );
-      }
+          ...(Object.keys(recognition).length ? { recognition } : {}),
+        },
+        { signal: controller.signal },
+      );
 
       setMessages((previous) => [
         ...previous,
@@ -188,14 +219,15 @@ const MedicineChat = forwardRef(function MedicineChat(
       if (data.catalog?.status === "matched" && data.sources?.length === 1) {
         onSelectMedicine?.(data.sources[0]);
       }
+      setDisclaimer(data.disclaimer || fallbackDisclaimer);
       setQuestion("");
     } catch (failure) {
       setError(
         failure.name === "AbortError"
-          ? "The request timed out. Please try again."
-          : failure.message === "Failed to fetch"
-            ? "Cannot connect to the medicine assistant. Check the network and try again."
-            : failure.message,
+          ? t("chat.requestTimedOut")
+          : failure.status === 0
+            ? t("chat.chatNetworkError")
+            : failure.message || t("chat.chatUnavailable"),
       );
     } finally {
       window.clearTimeout(timeout);
@@ -228,21 +260,21 @@ const MedicineChat = forwardRef(function MedicineChat(
           <strong>{t("chat.assistant")}</strong>
           <p>
             {medicineName
-              ? `Ask a question about ${medicineName}.`
-              : "Include the medicine name in your question."}
-            {recognitionText.trim() && " Package text has also been added."}
+              ? t("chat.askAbout", { name: medicineName })
+              : t("chat.includeMedicineName")}
+            {recognitionText.trim() && ` ${t("chat.packageAdded")}`}
           </p>
         </article>
 
         {messages.map((item, index) => (
           <article key={index} className={`chat-bubble ${item.role}`}>
             <strong>
-              {item.role === "user" ? "You" : t("chat.assistant")}
+              {item.role === "user" ? t("chat.you") : t("chat.assistant")}
             </strong>
             <p>{item.reply ? item.reply.answer : item.content}</p>
             {item.reply?.warnings.length > 0 && (
               <div className="chat-warnings">
-                <strong>Important</strong>
+                <strong>{t("chat.important")}</strong>
                 <ul>
                   {item.reply.warnings.map((warning, warningIndex) => (
                     <li key={warningIndex}>{warning}</li>
@@ -252,7 +284,7 @@ const MedicineChat = forwardRef(function MedicineChat(
             )}
             {item.reply?.followUpQuestions.length > 0 && (
               <div className="chat-followups">
-                <strong>Helpful details to provide</strong>
+                <strong>{t("chat.helpfulDetails")}</strong>
                 <ul>
                   {item.reply.followUpQuestions.map(
                     (followup, followupIndex) => (
@@ -263,16 +295,20 @@ const MedicineChat = forwardRef(function MedicineChat(
               </div>
             )}
             {item.sources?.length > 0 && (
-              <section className="chat-sources" aria-label="Source data">
+              <section
+                className="chat-sources"
+                aria-label={t("chat.sourceData")}
+              >
                 <strong>
                   {item.catalog?.status === "ambiguous"
-                    ? "Select a candidate medicine"
-                    : "Source data"}{" "}
-                  (42_2.csv)
+                    ? t("chat.selectCandidate")
+                    : t("chat.sourceData")}{" "}
+                  ({item.catalog?.fileName || "42_2.csv"})
                 </strong>
                 {item.sources.map((record, sourceIndex) => {
                   const sourceId = `source-image-${index}-${sourceIndex}`;
                   const askId = `source-ask-${index}-${sourceIndex}`;
+                  const sourceImageUrl = firstSourceImageUrl(record.imageUrl);
                   return (
                     <div className="source-record" key={record.recordId}>
                       <strong>
@@ -281,31 +317,33 @@ const MedicineChat = forwardRef(function MedicineChat(
                       <p>{record.licenseNumber}</p>
                       <dl>
                         {Object.entries({
-                          englishName: "English name",
-                          shape: "Shape",
-                          color: "Color",
-                          scoreLine: "Score line",
-                          size: "Appearance size (unit not provided)",
-                          imprint1: "Imprint 1",
-                          imprint2: "Imprint 2",
+                          englishName: t("chat.englishName"),
+                          shape: t("chat.shape"),
+                          dosageForm: t("chat.dosageForm"),
+                          color: t("chat.color"),
+                          odor: t("chat.odor"),
+                          scoreLine: t("chat.scoreLine"),
+                          size: t("chat.appearanceSize"),
+                          imprint1: t("chat.imprint1"),
+                          imprint2: t("chat.imprint2"),
                         }).map(([field, label]) => (
                           <div key={field}>
                             <dt>{label}</dt>
-                            <dd>{record[field] || "Not provided"}</dd>
+                            <dd>{record[field] || t("chat.notProvided")}</dd>
                           </div>
                         ))}
                       </dl>
-                      {/^(https?:\/\/)/i.test(record.imageUrl) && (
+                      {sourceImageUrl && (
                         <a
                           className={
                             focusedId === sourceId ? "is-selected" : ""
                           }
-                          href={record.imageUrl}
+                          href={sourceImageUrl}
                           target="_blank"
                           rel="noreferrer"
                           {...focusProps(sourceId)}
                         >
-                          Open the source image link
+                          {t("chat.openSourceImage")}
                         </a>
                       )}
                       {item.catalog?.status === "ambiguous" && (
@@ -318,7 +356,7 @@ const MedicineChat = forwardRef(function MedicineChat(
                           onClick={() => chooseMedicine(record)}
                           {...focusProps(askId)}
                         >
-                          Ask about this medicine
+                          {t("chat.askThisMedicine")}
                         </button>
                       )}
                     </div>
@@ -332,15 +370,15 @@ const MedicineChat = forwardRef(function MedicineChat(
         {sending && (
           <>
             <article className="chat-bubble user">
-              <strong>You</strong>
+              <strong>{t("chat.you")}</strong>
               <p>{pendingQuestion}</p>
             </article>
-            <p role="status">The medicine assistant is replying…</p>
+            <p role="status">{t("chat.replying")}</p>
           </>
         )}
         {error && (
           <p className="chat-error" role="alert">
-            {error} Your question was kept so you can submit it again.
+            {error} {t("chat.retryKept")}
           </p>
         )}
       </div>
@@ -348,7 +386,7 @@ const MedicineChat = forwardRef(function MedicineChat(
       <form ref={formRef} className="chat-form" onSubmit={send}>
         <FocusableField
           id="medicine-question"
-          label="What would you like to ask?"
+          label={t("chat.questionLabel")}
           multiline
           rows={2}
           value={question}
@@ -363,15 +401,13 @@ const MedicineChat = forwardRef(function MedicineChat(
             handleEditingChange("medicine-question", editing)
           }
           onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Enter a medicine-related question…"
+          placeholder={t("chat.questionPlaceholder")}
         />
       </form>
 
       <p className="chat-disclaimer">{disclaimer}</p>
       <p className="chat-privacy">
-        Messages and package text are sent to Gemini. Chinese CSV fields are
-        sent to Google Cloud Translation for English translation. This page
-        keeps only the current session and clears it when reloaded.
+        {t("chat.privacy")}
       </p>
     </section>
   );
