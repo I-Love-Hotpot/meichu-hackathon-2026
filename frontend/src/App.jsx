@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import DeviceShell from './components/DeviceShell.jsx'
 import MedicineMatchDeck from './components/MedicineMatchDeck.jsx'
 import {
   Decision,
   FeedbackCard,
+  FocusableField,
   ListRow,
   MedicineRow,
   QuantityPicker,
@@ -47,7 +48,13 @@ const SCREEN = {
 
 const HISTORY_KEY = 'medaboutyou'
 const SCREEN_VALUES = new Set(Object.values(SCREEN))
+const LANGUAGE_CODES = ['zh-TW', 'en-US']
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
+const getDefaultFocusForScreen = (screen, currentLanguage) => {
+  if (screen !== SCREEN.LANGUAGE) return 0
+  const languageIndex = LANGUAGE_CODES.findIndex((code) => code === currentLanguage)
+  return languageIndex >= 0 ? languageIndex : 0
+}
 
 function useStoredDoses() {
   const [doses, setDoses] = useState(() => {
@@ -118,6 +125,7 @@ export default function App() {
   const [manualName, setManualName] = useState('')
   const [manualDirections, setManualDirections] = useState('')
   const [manualEntryMode, setManualEntryMode] = useState('search')
+  const [manualEditingField, setManualEditingField] = useState(null)
   const [savedManualMedicine, setSavedManualMedicine] = useState(null)
   const [selectedReminderTimes, setSelectedReminderTimes] = useState([])
   const [editDirections, setEditDirections] = useState('')
@@ -138,6 +146,8 @@ export default function App() {
   const pendingResetRef = useRef(null)
 
   const currentLanguage = i18n.resolvedLanguage || i18n.language
+  const currentLanguageRef = useRef(currentLanguage)
+  currentLanguageRef.current = currentLanguage
   const allMedicines = [...medicines, ...userMedicines]
   const medicineName = (medicineOrId) => {
     const medicine = typeof medicineOrId === 'string'
@@ -197,19 +207,28 @@ export default function App() {
     }
   })
 
-  const navigate = (next) => {
-    const depth = Number(window.history.state?.depth || 0) + 1
-    window.history.pushState({ [HISTORY_KEY]: true, screen: next, depth }, '')
-    setScreen(next)
-    setFocus(0)
+  const persistCurrentFocus = (value = focus) => {
+    const entry = window.history.state
+    if (!entry?.[HISTORY_KEY] || entry.screen !== screen) return
+    window.history.replaceState({ ...entry, focus: value }, '')
   }
 
-  const replace = (next) => {
-    const depth = Number(window.history.state?.depth || 0)
-    window.history.replaceState({ [HISTORY_KEY]: true, screen: next, depth }, '')
+  const navigate = (next, fromFocus = focus) => {
+    persistCurrentFocus(fromFocus)
+    const depth = Number(window.history.state?.depth || 0) + 1
+    const nextFocus = getDefaultFocusForScreen(next, currentLanguage)
+    window.history.pushState({ [HISTORY_KEY]: true, screen: next, depth, focus: nextFocus }, '')
     setScreen(next)
-    setFocus(0)
+    setFocus(nextFocus)
   }
+
+  const replace = useCallback((next) => {
+    const depth = Number(window.history.state?.depth || 0)
+    const nextFocus = getDefaultFocusForScreen(next, currentLanguage)
+    window.history.replaceState({ [HISTORY_KEY]: true, screen: next, depth, focus: nextFocus }, '')
+    setScreen(next)
+    setFocus(nextFocus)
+  }, [currentLanguage])
 
   const resetFlow = (next) => {
     const depth = Number(window.history.state?.depth || 0)
@@ -230,9 +249,18 @@ export default function App() {
 
     if (entry?.[HISTORY_KEY] && SCREEN_VALUES.has(entry.screen) && Number.isInteger(entry.depth)) {
       setScreen(entry.screen)
+      setFocus(Number.isInteger(entry.focus)
+        ? entry.focus
+        : getDefaultFocusForScreen(entry.screen, currentLanguageRef.current))
     } else {
-      window.history.replaceState({ [HISTORY_KEY]: true, screen: SCREEN.HOME, depth: 0 }, '')
+      window.history.replaceState({
+        [HISTORY_KEY]: true,
+        screen: SCREEN.HOME,
+        depth: 0,
+        focus: getDefaultFocusForScreen(SCREEN.HOME, currentLanguageRef.current),
+      }, '')
       setScreen(SCREEN.HOME)
+      setFocus(getDefaultFocusForScreen(SCREEN.HOME, currentLanguageRef.current))
     }
 
     const handlePopState = (event) => {
@@ -240,13 +268,16 @@ export default function App() {
       if (pendingResetRef.current && event.state.depth === 0) {
         const next = pendingResetRef.current
         pendingResetRef.current = null
-        window.history.pushState({ [HISTORY_KEY]: true, screen: next, depth: 1 }, '')
+        const nextFocus = getDefaultFocusForScreen(next, currentLanguageRef.current)
+        window.history.pushState({ [HISTORY_KEY]: true, screen: next, depth: 1, focus: nextFocus }, '')
         setScreen(next)
-        setFocus(0)
+        setFocus(nextFocus)
         return
       }
       setScreen(event.state.screen)
-      setFocus(0)
+      setFocus(Number.isInteger(event.state.focus)
+        ? event.state.focus
+        : getDefaultFocusForScreen(event.state.screen, currentLanguageRef.current))
     }
 
     window.addEventListener('popstate', handlePopState)
@@ -254,7 +285,14 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    const entry = window.history.state
+    if (!entry?.[HISTORY_KEY] || entry.screen !== screen || entry.focus === focus) return
+    window.history.replaceState({ ...entry, focus }, '')
+  }, [focus, screen])
+
+  useEffect(() => {
     shellRef.current?.focus()
+    if (screen !== SCREEN.MANUAL) setManualEditingField(null)
     quantityBufferRef.current = ''
     window.clearTimeout(quantityTimerRef.current)
   }, [screen])
@@ -278,7 +316,7 @@ export default function App() {
       replace(SCREEN.MATCHES)
     }, 1200)
     return () => window.clearTimeout(timer)
-  }, [screen])
+  }, [replace, screen])
 
   const adjustQuantity = (amount) => {
     quantityBufferRef.current = ''
@@ -316,21 +354,33 @@ export default function App() {
     element.scrollBy({ top: direction * distance, behavior: 'smooth' })
   }
 
-  const openManualEntry = (mode) => {
+  const openManualEntry = (mode, fromFocus = focus) => {
     setManualName('')
     setManualDirections('')
     setManualEntryMode(mode)
+    setManualEditingField(null)
     setSavedManualMedicine(null)
     setSelectedReminderTimes([])
     setDecision(0)
-    navigate(SCREEN.MANUAL)
+    navigate(SCREEN.MANUAL, fromFocus)
   }
 
-  const openPhotoUpload = () => {
+  const enterManualInputMode = (index = focus) => {
+    const fieldIndex = clamp(index, 0, 1)
+    setFocus(fieldIndex)
+    setManualEditingField(fieldIndex)
+  }
+
+  const leaveManualInputMode = () => {
+    setManualEditingField(null)
+    window.requestAnimationFrame(() => shellRef.current?.focus())
+  }
+
+  const openPhotoUpload = (fromFocus = focus) => {
     setSavedManualMedicine(null)
     setSelectedReminderTimes([])
     setDecision(0)
-    navigate(SCREEN.UPLOAD)
+    navigate(SCREEN.UPLOAD, fromFocus)
   }
 
   const submitManualEntry = () => {
@@ -411,15 +461,15 @@ export default function App() {
     }))
   }
 
-  const openDirectionsEditor = () => {
+  const openDirectionsEditor = (fromFocus = focus) => {
     setEditDirections(medicineDirections(selectedMedicine))
-    navigate(SCREEN.EDIT_DIRECTIONS)
+    navigate(SCREEN.EDIT_DIRECTIONS, fromFocus)
   }
 
-  const openRemindersEditor = () => {
+  const openRemindersEditor = (fromFocus = focus) => {
     setSelectedReminderTimes(medicineReminders(selectedMedicine))
     setReminderInputError(false)
-    navigate(SCREEN.EDIT_REMINDERS)
+    navigate(SCREEN.EDIT_REMINDERS, fromFocus)
   }
 
   const saveDirections = () => {
@@ -431,11 +481,11 @@ export default function App() {
     goBack()
   }
 
-  const openCustomReminder = (returnScreen) => {
+  const openCustomReminder = (returnScreen, fromFocus = focus) => {
     setCustomReminderTime('')
     setReminderInputError(false)
     setReminderReturnScreen(returnScreen)
-    navigate(SCREEN.CUSTOM_REMINDER)
+    navigate(SCREEN.CUSTOM_REMINDER, fromFocus)
   }
 
   const saveReminders = () => {
@@ -459,9 +509,9 @@ export default function App() {
     resetFlow(SCREEN.MEDICINES)
   }
 
-  const openDeleteMedicine = () => {
+  const openDeleteMedicine = (fromFocus = focus) => {
     setDecision(1)
-    navigate(SCREEN.DELETE_MEDICINE)
+    navigate(SCREEN.DELETE_MEDICINE, fromFocus)
   }
 
   const deleteSelectedMedicine = () => {
@@ -513,7 +563,7 @@ export default function App() {
               navigate(SCREEN.REMINDER_ALERT)
               return
             }
-            if (homeItems[number - 1]) navigate(homeItems[number - 1].target)
+            if (homeItems[number - 1]) navigate(homeItems[number - 1].target, number - 1)
           },
           content: <div className="dense-list">
             {homeItems.map((item, index) => (
@@ -522,7 +572,7 @@ export default function App() {
                 label={`${index + 1}  ${item.label}`}
                 state={item.state}
                 selected={focus === index}
-                onClick={() => navigate(item.target)}
+                onClick={() => navigate(item.target, index)}
               />
             ))}
           </div>,
@@ -536,13 +586,13 @@ export default function App() {
             else openManualEntry('search')
           },
           onNumber: (number) => {
-            if (number === 1) openPhotoUpload()
-            if (number === 2) openManualEntry('search')
+            if (number === 1) openPhotoUpload(0)
+            if (number === 2) openManualEntry('search', 1)
           },
           content: <>
             <p className="prompt">{t('add.chooseMethod')}</p>
-            <ListRow label={`1  ${t('add.photo')}`} selected={focus === 0} onClick={openPhotoUpload} />
-            <ListRow label={`2  ${t('add.keyboard')}`} selected={focus === 1} onClick={() => openManualEntry('search')} />
+            <ListRow label={`1  ${t('add.photo')}`} selected={focus === 0} onClick={() => openPhotoUpload(0)} />
+            <ListRow label={`2  ${t('add.keyboard')}`} selected={focus === 1} onClick={() => openManualEntry('search', 1)} />
             <p className="helper">{t('add.navigationHelp')}</p>
           </>,
         }
@@ -574,27 +624,49 @@ export default function App() {
 
       case SCREEN.MANUAL:
         return {
-          title: t('add.manualTitle'), count: 1, left: t('common.confirm'), right: t('common.back'),
-          onEnter: submitManualEntry,
+          title: t('add.manualTitle'), count: 2, left: t('common.confirm'), right: t('common.back'),
+          onLeft: submitManualEntry,
+          onEnter: () => {
+            if (manualEditingField !== null) leaveManualInputMode()
+            else enterManualInputMode()
+          },
+          onInputKey: () => {
+            if (manualEditingField !== null) leaveManualInputMode()
+            else enterManualInputMode()
+          },
           content: <form className="manual-form" onSubmit={(event) => {
             event.preventDefault()
             submitManualEntry()
           }}>
-            <label htmlFor="medicine-name">{t('add.medicineName')}</label>
-            <input
+            <FocusableField
               id="medicine-name"
+              label={t('add.medicineName')}
               value={manualName}
               placeholder={t('add.medicinePlaceholder')}
+              selected={focus === 0}
+              editing={manualEditingField === 0}
               onChange={(event) => setManualName(event.target.value)}
+              onSelect={() => setFocus(0)}
+              onEditingChange={(editing) => {
+                if (editing) enterManualInputMode(0)
+                else if (manualEditingField === 0) leaveManualInputMode()
+              }}
               required
-              autoFocus
             />
-            <label htmlFor="medicine-directions">{t('add.directions')}</label>
-            <textarea
+            <FocusableField
               id="medicine-directions"
+              label={t('add.directions')}
               value={manualDirections}
               placeholder={t('add.directionsPlaceholder')}
+              selected={focus === 1}
+              editing={manualEditingField === 1}
               onChange={(event) => setManualDirections(event.target.value)}
+              onSelect={() => setFocus(1)}
+              onEditingChange={(editing) => {
+                if (editing) enterManualInputMode(1)
+                else if (manualEditingField === 1) leaveManualInputMode()
+              }}
+              multiline
             />
             <p className="helper">{t('add.manualContinueHelp')}</p>
           </form>,
@@ -700,7 +772,7 @@ export default function App() {
               <ListRow
                 label={`${reminderOptions.length + 1}  ${t('add.otherReminder')}`}
                 selected={focus === reminderOptions.length}
-                onClick={() => openCustomReminder(SCREEN.REMINDER_SETUP)}
+                onClick={() => openCustomReminder(SCREEN.REMINDER_SETUP, reminderOptions.length)}
               />
             </div>
             <p className="helper">{t('add.reminderHelp')}</p>
@@ -787,7 +859,10 @@ export default function App() {
           onLeft: () => resetFlow(SCREEN.RECORD_COMPLETE),
           onEnter: () => toggleDose(focus),
           onNumber: (number) => {
-            if (doses[number - 1]) toggleDose(number - 1)
+            if (doses[number - 1]) {
+              setFocus(number - 1)
+              toggleDose(number - 1)
+            }
           },
           content: doses.map((dose, index) => (
             <MedicineRow
@@ -796,7 +871,10 @@ export default function App() {
               detail={doseDetail(dose)}
               checked={dose.taken}
               selected={focus === index}
-              onClick={() => toggleDose(index)}
+              onClick={() => {
+                setFocus(index)
+                toggleDose(index)
+              }}
             />
           )),
         }
@@ -821,7 +899,7 @@ export default function App() {
           left: t('common.open'), right: t('common.back'),
           onEnter: () => navigate(SCREEN.HISTORY_DETAIL),
           onNumber: (number) => {
-            if (historyDays[number - 1]) navigate(SCREEN.HISTORY_DETAIL)
+            if (historyDays[number - 1]) navigate(SCREEN.HISTORY_DETAIL, number - 1)
           },
           content: historyDays.map((day, index) => (
             <ListRow
@@ -834,7 +912,7 @@ export default function App() {
               })}`}
               state={day.state}
               selected={focus === index}
-              onClick={() => navigate(SCREEN.HISTORY_DETAIL)}
+              onClick={() => navigate(SCREEN.HISTORY_DETAIL, index)}
             />
           )),
         }
@@ -889,17 +967,17 @@ export default function App() {
         const addIndex = archivedIndex + (archivedMedicines.length ? 1 : 0)
         const activateMedicineMenu = (index) => {
           if (archivedMedicines.length && index === archivedIndex) {
-            navigate(SCREEN.ARCHIVED_MEDICINES)
+            navigate(SCREEN.ARCHIVED_MEDICINES, index)
             return
           }
           if (index === addIndex) {
-            navigate(SCREEN.ADD_METHOD)
+            navigate(SCREEN.ADD_METHOD, index)
             return
           }
           const medicine = activeMedicines[index]
           if (!medicine) return
           setSelectedMedicine(medicine)
-          navigate(SCREEN.MEDICINE_DETAIL)
+          navigate(SCREEN.MEDICINE_DETAIL, index)
         }
 
         return {
@@ -947,7 +1025,7 @@ export default function App() {
             const medicine = archivedMedicines[number - 1]
             if (!medicine) return
             setSelectedMedicine(medicine)
-            navigate(SCREEN.MEDICINE_DETAIL)
+            navigate(SCREEN.MEDICINE_DETAIL, number - 1)
           },
           content: <div className="medicine-list">
             {archivedMedicines.map((medicine, index) => (
@@ -958,7 +1036,7 @@ export default function App() {
                 selected={focus === index}
                 onClick={() => {
                   setSelectedMedicine(medicine)
-                  navigate(SCREEN.MEDICINE_DETAIL)
+                  navigate(SCREEN.MEDICINE_DETAIL, index)
                 }}
               />
             ))}
@@ -988,27 +1066,30 @@ export default function App() {
               <ListRow
                 label={t('medicines.usage', { usage: directions })}
                 selected={focus === 0}
-                onClick={openDirectionsEditor}
+                onClick={() => openDirectionsEditor(0)}
               />
               <ListRow
                 label={t('medicines.reminders', {
                   times: reminders.length ? reminders.join(' / ') : t('medicines.none'),
                 })}
                 selected={focus === 1}
-                onClick={openRemindersEditor}
+                onClick={() => openRemindersEditor(1)}
               />
               <ListRow
                 label={isMedicineArchived(selectedMedicine)
                   ? t('medicines.unarchive')
                   : t('medicines.archive')}
                 selected={focus === 2}
-                onClick={archiveSelectedMedicine}
+                onClick={() => {
+                  setFocus(2)
+                  archiveSelectedMedicine()
+                }}
               />
               <ListRow
                 label={t('medicines.delete')}
                 state="danger"
                 selected={focus === 3}
-                onClick={openDeleteMedicine}
+                onClick={() => openDeleteMedicine(3)}
               />
             </div>,
           }
@@ -1065,7 +1146,7 @@ export default function App() {
               <ListRow
                 label={`${reminderOptions.length + 1}  ${t('add.otherReminder')}`}
                 selected={focus === reminderOptions.length}
-                onClick={() => openCustomReminder(SCREEN.EDIT_REMINDERS)}
+                onClick={() => openCustomReminder(SCREEN.EDIT_REMINDERS, reminderOptions.length)}
               />
             </div>
           </>,
@@ -1145,6 +1226,11 @@ export default function App() {
     }
   })()
 
+  useEffect(() => {
+    const maxFocus = Math.max(0, screenConfig.count - 1)
+    if (focus > maxFocus) setFocus(maxFocus)
+  }, [focus, screenConfig.count])
+
   const onLeft = screenConfig.onLeft || screenConfig.onEnter
   const onCenter = screenConfig.onEnter
   const onRight = goBack
@@ -1153,6 +1239,12 @@ export default function App() {
     const isTextField = (event.target instanceof HTMLInputElement && event.target.type !== 'file')
       || event.target instanceof HTMLTextAreaElement
     if (isTextField && event.key !== 'Escape' && event.key !== 'SoftLeft') return
+
+    if (/^[0oO]$/.test(event.key) && screenConfig.onInputKey) {
+      event.preventDefault()
+      screenConfig.onInputKey()
+      return
+    }
 
     const isQuantityEntry = screen === SCREEN.QUANTITY
       || (screen === SCREEN.REMINDER_ALERT && focus === 1)

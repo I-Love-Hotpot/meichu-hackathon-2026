@@ -358,7 +358,16 @@
 .manual-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
+}
+
+.focusable-field {
+  padding: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 2px solid transparent;
+  border-radius: 10px;
 }
 
 .manual-form label {
@@ -370,12 +379,28 @@
 .manual-form textarea {
   width: 100%;
   padding: 10px 12px;
-  border: 3px solid var(--focus-stroke);
+  border: 1px solid var(--divider);
   border-radius: 8px;
   color: var(--ink);
-  background: var(--focus);
+  background: white;
   font-size: 16px;
   outline: none;
+}
+
+.focusable-field.is-selected {
+  border-color: var(--focus-stroke);
+  background: var(--focus);
+}
+
+.focusable-field.is-editing input,
+.focusable-field.is-editing textarea {
+  border-color: var(--focus-stroke);
+  box-shadow: inset 0 0 0 1px var(--focus-stroke);
+}
+
+.focusable-field input[readonly],
+.focusable-field textarea[readonly] {
+  cursor: default;
 }
 
 .manual-form input {
@@ -859,6 +884,13 @@
 
   .manual-form {
     gap: 2px;
+  }
+
+  .focusable-field {
+    padding: 1px;
+    gap: 1px;
+    border-width: 1px;
+    border-radius: 5px;
   }
 
   .manual-form label {

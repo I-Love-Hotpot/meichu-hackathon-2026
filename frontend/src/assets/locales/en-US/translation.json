@@ -49,7 +49,7 @@
     "directions": "Directions (optional)",
     "directionsPlaceholder": "Example: Take after dinner",
     "manualHelp": "Number keys are supported",
-    "manualContinueHelp": "Continue with this name and directions",
+    "manualContinueHelp": "Use ↑ ↓, press OK to type; Confirm finishes",
     "manualSaved": "Your entry was saved directly",
     "recognizingTitle": "Recognizing",
     "recognizing": "Reading medicine details…",
