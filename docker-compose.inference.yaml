@@ -30,7 +30,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 60s
+    expose:
+      - 8000
 
 networks:
   medicine-inference:
-    name: medicine-inference-net
+    external: true
