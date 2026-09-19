@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import DeviceShell from './components/DeviceShell.jsx'
+import MedicineMatchDeck from './components/MedicineMatchDeck.jsx'
 import {
   Decision,
   FeedbackCard,
@@ -35,6 +36,11 @@ const SCREEN = {
   QUANTITY: 'quantity',
   MEDICINES: 'medicines',
   MEDICINE_DETAIL: 'medicine-detail',
+  EDIT_DIRECTIONS: 'edit-directions',
+  EDIT_REMINDERS: 'edit-reminders',
+  CUSTOM_REMINDER: 'custom-reminder',
+  ARCHIVED_MEDICINES: 'archived-medicines',
+  DELETE_MEDICINE: 'delete-medicine',
   EMERGENCY: 'emergency',
   LANGUAGE: 'language',
 }
@@ -63,6 +69,46 @@ function useStoredDoses() {
   return [doses, setDoses]
 }
 
+function useStoredUserMedicines() {
+  const [userMedicines, setUserMedicines] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('medaboutyou-user-medicines') || '[]')
+      if (!Array.isArray(saved)) return []
+      return saved
+        .filter((medicine) => medicine.id && medicine.customName)
+        .map(({ customDescription, ...medicine }) => ({
+          ...medicine,
+          customDirections: medicine.customDirections ?? customDescription ?? '',
+        }))
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem('medaboutyou-user-medicines', JSON.stringify(userMedicines))
+  }, [userMedicines])
+
+  return [userMedicines, setUserMedicines]
+}
+
+function useStoredMedicineSettings() {
+  const [medicineSettings, setMedicineSettings] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('medaboutyou-medicine-settings') || '{}')
+      return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {}
+    } catch {
+      return {}
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem('medaboutyou-medicine-settings', JSON.stringify(medicineSettings))
+  }, [medicineSettings])
+
+  return [medicineSettings, setMedicineSettings]
+}
+
 export default function App() {
   const { t, i18n } = useTranslation()
   const [screen, setScreen] = useState(SCREEN.HOME)
@@ -70,19 +116,64 @@ export default function App() {
   const [decision, setDecision] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [manualName, setManualName] = useState('')
+  const [manualDirections, setManualDirections] = useState('')
+  const [manualEntryMode, setManualEntryMode] = useState('search')
+  const [savedManualMedicine, setSavedManualMedicine] = useState(null)
+  const [selectedReminderTimes, setSelectedReminderTimes] = useState([])
+  const [editDirections, setEditDirections] = useState('')
+  const [customReminderTime, setCustomReminderTime] = useState('')
+  const [reminderReturnScreen, setReminderReturnScreen] = useState(SCREEN.REMINDER_SETUP)
+  const [reminderInputError, setReminderInputError] = useState(false)
   const [selectedMedicine, setSelectedMedicine] = useState(medicines[0])
   const [selectedCandidate, setSelectedCandidate] = useState(medicineCandidates[0])
   const [uploadedName, setUploadedName] = useState('')
   const [doses, setDoses] = useStoredDoses()
+  const [userMedicines, setUserMedicines] = useStoredUserMedicines()
+  const [medicineSettings, setMedicineSettings] = useStoredMedicineSettings()
   const fileInputRef = useRef(null)
   const shellRef = useRef(null)
+  const matchScrollRef = useRef(null)
   const quantityBufferRef = useRef('')
   const quantityTimerRef = useRef(null)
+  const pendingResetRef = useRef(null)
 
   const currentLanguage = i18n.resolvedLanguage || i18n.language
-  const medicineName = (id) => t(`medicines.${id}.name`)
-  const medicineSchedule = (id) => t(`medicines.${id}.schedule`)
+  const allMedicines = [...medicines, ...userMedicines]
+  const medicineName = (medicineOrId) => {
+    const medicine = typeof medicineOrId === 'string'
+      ? allMedicines.find((item) => item.id === medicineOrId)
+      : medicineOrId
+    return medicine?.customName || t(`medicines.${medicine?.id || medicineOrId}.name`)
+  }
+  const medicineSchedule = (medicine) => (
+    medicine.customDirections || (medicine.isCustom ? t('medicines.manualEntry') : t(`medicines.${medicine.id}.schedule`))
+  )
   const medicineUsage = (id) => t(`medicines.${id}.usage`)
+  const medicineDirections = (medicine) => {
+    if (medicine.isCustom) return medicine.customDirections || ''
+    return medicineSettings[medicine.id]?.directions ?? medicineUsage(medicine.id)
+  }
+  const medicineReminders = (medicine) => (
+    medicine.isCustom
+      ? (medicine.reminders || [])
+      : (medicineSettings[medicine.id]?.reminders ?? medicine.reminders ?? [])
+  )
+  const isMedicineArchived = (medicine) => (
+    medicine.isCustom ? Boolean(medicine.archived) : Boolean(medicineSettings[medicine.id]?.archived)
+  )
+  const isMedicineDeleted = (medicine) => (
+    !medicine.isCustom && Boolean(medicineSettings[medicine.id]?.deleted)
+  )
+  const activeMedicines = allMedicines.filter((medicine) => (
+    !isMedicineArchived(medicine) && !isMedicineDeleted(medicine)
+  ))
+  const archivedMedicines = allMedicines.filter((medicine) => (
+    isMedicineArchived(medicine) && !isMedicineDeleted(medicine)
+  ))
+  const reminderOptions = [...new Set([
+    ...activeMedicines.flatMap(medicineReminders),
+    ...selectedReminderTimes,
+  ])].sort()
   const doseDetail = ({ time, amount, unit }) => t('dose.detail', {
     time,
     amount,
@@ -93,17 +184,41 @@ export default function App() {
     decreaseLabel: t('dose.decrease'),
     increaseLabel: t('dose.increase'),
   }
+  const localizedCandidates = medicineCandidates.map((candidate) => {
+    const name = t(`candidates.${candidate.id}`)
+    return {
+      ...candidate,
+      name,
+      genericName: t(`candidateDetails.${candidate.id}.genericName`),
+      primaryEffect: t(`candidateDetails.${candidate.id}.primaryEffect`),
+      sideEffects: t(`candidateDetails.${candidate.id}.sideEffects`),
+      indications: t(`candidateDetails.${candidate.id}.indications`),
+      imageAlt: t('matchCard.imageAlt', { name }),
+    }
+  })
 
   const navigate = (next) => {
-    window.history.pushState({ [HISTORY_KEY]: true, screen: next }, '')
+    const depth = Number(window.history.state?.depth || 0) + 1
+    window.history.pushState({ [HISTORY_KEY]: true, screen: next, depth }, '')
     setScreen(next)
     setFocus(0)
   }
 
   const replace = (next) => {
-    window.history.replaceState({ [HISTORY_KEY]: true, screen: next }, '')
+    const depth = Number(window.history.state?.depth || 0)
+    window.history.replaceState({ [HISTORY_KEY]: true, screen: next, depth }, '')
     setScreen(next)
     setFocus(0)
+  }
+
+  const resetFlow = (next) => {
+    const depth = Number(window.history.state?.depth || 0)
+    if (depth === 0) {
+      navigate(next)
+      return
+    }
+    pendingResetRef.current = next
+    window.history.go(-depth)
   }
 
   const goBack = () => {
@@ -113,14 +228,23 @@ export default function App() {
   useEffect(() => {
     const entry = window.history.state
 
-    if (entry?.[HISTORY_KEY] && SCREEN_VALUES.has(entry.screen)) {
+    if (entry?.[HISTORY_KEY] && SCREEN_VALUES.has(entry.screen) && Number.isInteger(entry.depth)) {
       setScreen(entry.screen)
     } else {
-      window.history.replaceState({ [HISTORY_KEY]: true, screen: SCREEN.HOME }, '')
+      window.history.replaceState({ [HISTORY_KEY]: true, screen: SCREEN.HOME, depth: 0 }, '')
+      setScreen(SCREEN.HOME)
     }
 
     const handlePopState = (event) => {
       if (!event.state?.[HISTORY_KEY] || !SCREEN_VALUES.has(event.state.screen)) return
+      if (pendingResetRef.current && event.state.depth === 0) {
+        const next = pendingResetRef.current
+        pendingResetRef.current = null
+        window.history.pushState({ [HISTORY_KEY]: true, screen: next, depth: 1 }, '')
+        setScreen(next)
+        setFocus(0)
+        return
+      }
       setScreen(event.state.screen)
       setFocus(0)
     }
@@ -136,6 +260,13 @@ export default function App() {
   }, [screen])
 
   useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      shellRef.current?.querySelector('.is-selected')?.scrollIntoView({ block: 'nearest' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [focus, screen, userMedicines.length])
+
+  useEffect(() => {
     document.documentElement.lang = currentLanguage
   }, [currentLanguage])
 
@@ -144,9 +275,7 @@ export default function App() {
   useEffect(() => {
     if (screen !== SCREEN.RECOGNIZING) return undefined
     const timer = window.setTimeout(() => {
-      window.history.replaceState({ [HISTORY_KEY]: true, screen: SCREEN.MATCHES }, '')
-      setScreen(SCREEN.MATCHES)
-      setFocus(0)
+      replace(SCREEN.MATCHES)
     }, 1200)
     return () => window.clearTimeout(timer)
   }, [screen])
@@ -178,6 +307,180 @@ export default function App() {
     quantityTimerRef.current = window.setTimeout(() => {
       quantityBufferRef.current = ''
     }, 1200)
+  }
+
+  const scrollMatchCard = (direction) => {
+    const element = matchScrollRef.current
+    if (!element) return
+    const distance = Math.max(36, Math.round(element.clientHeight * 0.65))
+    element.scrollBy({ top: direction * distance, behavior: 'smooth' })
+  }
+
+  const openManualEntry = (mode) => {
+    setManualName('')
+    setManualDirections('')
+    setManualEntryMode(mode)
+    setSavedManualMedicine(null)
+    setSelectedReminderTimes([])
+    setDecision(0)
+    navigate(SCREEN.MANUAL)
+  }
+
+  const openPhotoUpload = () => {
+    setSavedManualMedicine(null)
+    setSelectedReminderTimes([])
+    setDecision(0)
+    navigate(SCREEN.UPLOAD)
+  }
+
+  const submitManualEntry = () => {
+    const name = manualName.trim()
+    if (!name) return
+
+    if (manualEntryMode === 'search') {
+      setSavedManualMedicine(null)
+      navigate(SCREEN.RECOGNIZING)
+      return
+    }
+
+    const medicine = {
+      id: `manual-${Date.now()}`,
+      isCustom: true,
+      customName: name,
+      customDirections: manualDirections.trim(),
+      reminders: [],
+    }
+    setUserMedicines((items) => [...items, medicine])
+    setSavedManualMedicine(medicine)
+    setSelectedMedicine(medicine)
+    resetFlow(SCREEN.ADD_COMPLETE)
+  }
+
+  const updateSavedManualMedicine = (updates) => {
+    if (!savedManualMedicine) return
+    const medicine = { ...savedManualMedicine, ...updates }
+    setSavedManualMedicine(medicine)
+    setSelectedMedicine(medicine)
+    setUserMedicines((items) => items.map((item) => (
+      item.id === medicine.id ? medicine : item
+    )))
+  }
+
+  const toggleReminder = (time) => {
+    setSelectedReminderTimes((times) => (
+      times.includes(time)
+        ? times.filter((item) => item !== time)
+        : [...times, time].sort()
+    ))
+  }
+
+  const completeDailyChoice = () => {
+    if (decision === 0) {
+      navigate(SCREEN.REMINDER_SETUP)
+      return
+    }
+    setSelectedReminderTimes([])
+    updateSavedManualMedicine({ reminders: [] })
+    resetFlow(SCREEN.ADD_COMPLETE)
+  }
+
+  const completeReminderSetup = () => {
+    updateSavedManualMedicine({ reminders: selectedReminderTimes })
+    resetFlow(SCREEN.ADD_COMPLETE)
+  }
+
+  const updateSelectedMedicine = (updates) => {
+    if (selectedMedicine.isCustom) {
+      const medicine = { ...selectedMedicine, ...updates }
+      setSelectedMedicine(medicine)
+      setSavedManualMedicine((current) => (
+        current?.id === medicine.id ? medicine : current
+      ))
+      setUserMedicines((items) => items.map((item) => (
+        item.id === medicine.id ? medicine : item
+      )))
+      return
+    }
+
+    setMedicineSettings((settings) => ({
+      ...settings,
+      [selectedMedicine.id]: {
+        ...settings[selectedMedicine.id],
+        ...updates,
+      },
+    }))
+  }
+
+  const openDirectionsEditor = () => {
+    setEditDirections(medicineDirections(selectedMedicine))
+    navigate(SCREEN.EDIT_DIRECTIONS)
+  }
+
+  const openRemindersEditor = () => {
+    setSelectedReminderTimes(medicineReminders(selectedMedicine))
+    setReminderInputError(false)
+    navigate(SCREEN.EDIT_REMINDERS)
+  }
+
+  const saveDirections = () => {
+    updateSelectedMedicine({
+      ...(selectedMedicine.isCustom
+        ? { customDirections: editDirections.trim() }
+        : { directions: editDirections.trim() }),
+    })
+    goBack()
+  }
+
+  const openCustomReminder = (returnScreen) => {
+    setCustomReminderTime('')
+    setReminderInputError(false)
+    setReminderReturnScreen(returnScreen)
+    navigate(SCREEN.CUSTOM_REMINDER)
+  }
+
+  const saveReminders = () => {
+    updateSelectedMedicine({ reminders: selectedReminderTimes })
+    goBack()
+  }
+
+  const saveCustomReminder = () => {
+    const match = customReminderTime.match(/^(\d{2}):(\d{2})$/)
+    if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) {
+      setReminderInputError(true)
+      return
+    }
+    setSelectedReminderTimes((times) => [...new Set([...times, customReminderTime])].sort())
+    setReminderInputError(false)
+    goBack()
+  }
+
+  const archiveSelectedMedicine = () => {
+    updateSelectedMedicine({ archived: !isMedicineArchived(selectedMedicine) })
+    resetFlow(SCREEN.MEDICINES)
+  }
+
+  const openDeleteMedicine = () => {
+    setDecision(1)
+    navigate(SCREEN.DELETE_MEDICINE)
+  }
+
+  const deleteSelectedMedicine = () => {
+    if (selectedMedicine.isCustom) {
+      setUserMedicines((items) => items.filter((item) => item.id !== selectedMedicine.id))
+      setSavedManualMedicine((current) => (
+        current?.id === selectedMedicine.id ? null : current
+      ))
+    } else {
+      setMedicineSettings((settings) => ({
+        ...settings,
+        [selectedMedicine.id]: {
+          ...settings[selectedMedicine.id],
+          deleted: true,
+          archived: false,
+        },
+      }))
+    }
+    resetFlow(SCREEN.MEDICINES)
   }
 
   const toggleDose = (index) => {
@@ -228,15 +531,18 @@ export default function App() {
       case SCREEN.ADD_METHOD:
         return {
           title: t('add.title'), count: 2, left: t('common.select'), right: t('common.back'),
-          onEnter: () => navigate(focus === 0 ? SCREEN.UPLOAD : SCREEN.MANUAL),
+          onEnter: () => {
+            if (focus === 0) openPhotoUpload()
+            else openManualEntry('search')
+          },
           onNumber: (number) => {
-            if (number === 1) navigate(SCREEN.UPLOAD)
-            if (number === 2) navigate(SCREEN.MANUAL)
+            if (number === 1) openPhotoUpload()
+            if (number === 2) openManualEntry('search')
           },
           content: <>
             <p className="prompt">{t('add.chooseMethod')}</p>
-            <ListRow label={`1  ${t('add.photo')}`} selected={focus === 0} onClick={() => navigate(SCREEN.UPLOAD)} />
-            <ListRow label={`2  ${t('add.keyboard')}`} selected={focus === 1} onClick={() => navigate(SCREEN.MANUAL)} />
+            <ListRow label={`1  ${t('add.photo')}`} selected={focus === 0} onClick={openPhotoUpload} />
+            <ListRow label={`2  ${t('add.keyboard')}`} selected={focus === 1} onClick={() => openManualEntry('search')} />
             <p className="helper">{t('add.navigationHelp')}</p>
           </>,
         }
@@ -269,12 +575,10 @@ export default function App() {
       case SCREEN.MANUAL:
         return {
           title: t('add.manualTitle'), count: 1, left: t('common.confirm'), right: t('common.back'),
-          onEnter: () => {
-            if (manualName.trim()) navigate(SCREEN.RECOGNIZING)
-          },
+          onEnter: submitManualEntry,
           content: <form className="manual-form" onSubmit={(event) => {
             event.preventDefault()
-            if (manualName.trim()) navigate(SCREEN.RECOGNIZING)
+            submitManualEntry()
           }}>
             <label htmlFor="medicine-name">{t('add.medicineName')}</label>
             <input
@@ -282,9 +586,17 @@ export default function App() {
               value={manualName}
               placeholder={t('add.medicinePlaceholder')}
               onChange={(event) => setManualName(event.target.value)}
+              required
               autoFocus
             />
-            <p className="helper">{t('add.manualHelp')}<br />Enter</p>
+            <label htmlFor="medicine-directions">{t('add.directions')}</label>
+            <textarea
+              id="medicine-directions"
+              value={manualDirections}
+              placeholder={t('add.directionsPlaceholder')}
+              onChange={(event) => setManualDirections(event.target.value)}
+            />
+            <p className="helper">{t('add.manualContinueHelp')}</p>
           </form>,
         }
 
@@ -298,42 +610,53 @@ export default function App() {
           </div>,
         }
 
-      case SCREEN.MATCHES:
-        return {
-          title: t('add.matchesTitle'), count: medicineCandidates.length,
-          left: t('common.confirm'), right: t('common.back'),
-          onEnter: () => {
-            setSelectedCandidate(medicineCandidates[focus])
-            navigate(SCREEN.DAILY)
-          },
-          onNumber: (number) => {
-            const candidate = medicineCandidates[number - 1]
-            if (!candidate) return
+      case SCREEN.MATCHES: {
+        const activateMatch = () => {
+          const candidate = medicineCandidates[focus]
+          if (candidate) {
+            setSavedManualMedicine(null)
+            setSelectedReminderTimes([])
+            setDecision(0)
             setSelectedCandidate(candidate)
             navigate(SCREEN.DAILY)
-          },
-          content: <>
-            {medicineCandidates.map((candidate, index) => (
-              <MedicineRow
-                key={candidate.id}
-                medicine={`${index + 1}  ${t(`candidates.${candidate.id}`)}`}
-                detail={`${candidate.strength} · ${t('add.confidence', { value: candidate.confidence })}`}
-                selected={focus === index}
-                onClick={() => {
-                  setSelectedCandidate(candidate)
-                  navigate(SCREEN.DAILY)
-                }}
-              />
-            ))}
-            <p className="helper">{t('add.matchesHelp')}</p>
-          </>,
+            return
+          }
+          openManualEntry('direct')
         }
+
+        return {
+          title: t('add.matchesTitle'), count: medicineCandidates.length + 1,
+          left: t('common.confirm'), right: t('common.back'),
+          onEnter: activateMatch,
+          onNumber: (number) => {
+            if (number >= 1 && number <= medicineCandidates.length + 1) setFocus(number - 1)
+          },
+          onArrowLeft: () => setFocus((current) => clamp(current - 1, 0, medicineCandidates.length)),
+          onArrowRight: () => setFocus((current) => clamp(current + 1, 0, medicineCandidates.length)),
+          onArrowUp: () => scrollMatchCard(-1),
+          onArrowDown: () => scrollMatchCard(1),
+          content: <MedicineMatchDeck
+            candidates={localizedCandidates}
+            index={focus}
+            onChange={setFocus}
+            onActivate={activateMatch}
+            scrollRef={matchScrollRef}
+            labels={{
+              primaryEffect: t('matchCard.primaryEffect'),
+              sideEffects: t('matchCard.sideEffects'),
+              indications: t('matchCard.indications'),
+              manualTitle: t('matchCard.manualTitle'),
+              manualHelp: t('matchCard.manualHelp'),
+            }}
+          />,
+        }
+      }
 
       case SCREEN.DAILY:
         return {
           title: t('add.dailyTitle'), count: 2, left: t('common.confirm'), right: t('common.back'),
           horizontal: true,
-          onEnter: () => navigate(decision === 0 ? SCREEN.REMINDER_SETUP : SCREEN.ADD_COMPLETE),
+          onEnter: completeDailyChoice,
           content: <>
             <p className="prompt">{t('add.dailyQuestion')}</p>
             <Decision
@@ -349,17 +672,71 @@ export default function App() {
 
       case SCREEN.REMINDER_SETUP:
         return {
-          title: t('add.reminderTitle'), count: 3, left: t('common.finish'), right: t('common.back'),
-          onEnter: () => navigate(SCREEN.ADD_COMPLETE),
+          title: t('add.reminderTitle'), count: reminderOptions.length + 1,
+          left: t('common.finish'), right: t('common.back'),
+          onLeft: completeReminderSetup,
+          onEnter: () => {
+            if (focus === reminderOptions.length) openCustomReminder(SCREEN.REMINDER_SETUP)
+            else toggleReminder(reminderOptions[focus])
+          },
           onNumber: (number) => {
-            if (number >= 1 && number <= 3) setFocus(number - 1)
+            if (number >= 1 && number <= reminderOptions.length + 1) setFocus(number - 1)
           },
           content: <>
             <p className="prompt">{t('add.chooseReminder')}</p>
-            {[t('add.breakfast'), t('add.dinner'), t('add.addReminder')].map((label, index) => (
-              <ListRow key={label} label={`${index + 1}  ${label}`} selected={focus === index} onClick={() => setFocus(index)} />
-            ))}
+            <div className="reminder-list">
+              {reminderOptions.map((time, index) => (
+                <ListRow
+                  key={time}
+                  label={`${index + 1}  ${time}`}
+                  trailing={selectedReminderTimes.includes(time) ? '✓' : '○'}
+                  selected={focus === index}
+                  onClick={() => {
+                    setFocus(index)
+                    toggleReminder(time)
+                  }}
+                />
+              ))}
+              <ListRow
+                label={`${reminderOptions.length + 1}  ${t('add.otherReminder')}`}
+                selected={focus === reminderOptions.length}
+                onClick={() => openCustomReminder(SCREEN.REMINDER_SETUP)}
+              />
+            </div>
+            <p className="helper">{t('add.reminderHelp')}</p>
           </>,
+        }
+
+      case SCREEN.CUSTOM_REMINDER:
+        return {
+          title: t('add.customReminderTitle'), count: 1,
+          left: t('common.save'), right: t('common.back'),
+          onEnter: saveCustomReminder,
+          content: <form className="manual-form" onSubmit={(event) => {
+            event.preventDefault()
+            saveCustomReminder()
+          }}>
+            <label htmlFor="custom-reminder-time">{t('add.customReminderLabel')}</label>
+            <input
+              id="custom-reminder-time"
+              type="time"
+              value={customReminderTime}
+              onChange={(event) => {
+                setCustomReminderTime(event.target.value)
+                setReminderInputError(false)
+              }}
+              aria-invalid={reminderInputError}
+              required
+              autoFocus
+            />
+            <p className={`helper${reminderInputError ? ' input-error' : ''}`} aria-live="polite">
+              {reminderInputError
+                ? t('medicines.invalidReminders')
+                : t(reminderReturnScreen === SCREEN.EDIT_REMINDERS
+                    ? 'medicines.customReminderHelp'
+                    : 'add.customReminderHelp')}
+            </p>
+          </form>,
         }
 
       case SCREEN.ADD_COMPLETE:
@@ -369,9 +746,16 @@ export default function App() {
           onEnter: () => replace(SCREEN.MEDICINES),
           content: <>
             <FeedbackCard title={t('add.added')}>
-              <span>{t(`candidates.${selectedCandidate.id}`)}</span>
+              <span>{savedManualMedicine?.customName || t(`candidates.${selectedCandidate.id}`)}</span>
+              {savedManualMedicine?.customDirections && <small>{savedManualMedicine.customDirections}</small>}
             </FeedbackCard>
-            <p className="helper centered">{t('add.nextReminder')}</p>
+            <p className="helper centered">
+              {savedManualMedicine
+                ? (savedManualMedicine.reminders.length > 0
+                    ? t('add.remindersSaved', { times: savedManualMedicine.reminders.join(' / ') })
+                    : t('add.noReminderSaved'))
+                : t('add.nextReminder')}
+            </p>
           </>,
         }
 
@@ -379,7 +763,7 @@ export default function App() {
         return {
           title: t('dose.reminderTitle'), date: '09/19', time: '08:00', count: 2,
           left: t('common.record'), right: t('common.later'),
-          onEnter: () => navigate(SCREEN.RECORD_COMPLETE),
+          onEnter: () => resetFlow(SCREEN.RECORD_COMPLETE),
           content: <>
             <MedicineRow
               medicine={medicineName('pressure')}
@@ -400,7 +784,7 @@ export default function App() {
         return {
           title: t('dose.recordTodayTitle'), date: '09/19', time: t('common.now'), count: doses.length,
           left: t('common.finish'), right: t('common.back'),
-          onLeft: () => navigate(SCREEN.RECORD_COMPLETE),
+          onLeft: () => resetFlow(SCREEN.RECORD_COMPLETE),
           onEnter: () => toggleDose(focus),
           onNumber: (number) => {
             if (doses[number - 1]) toggleDose(number - 1)
@@ -421,7 +805,7 @@ export default function App() {
         return {
           title: t('dose.completeTitle'), count: 1,
           left: t('common.mainMenu'), right: t('common.back'),
-          onEnter: () => replace(SCREEN.HOME),
+          onEnter: goBack,
           content: <>
             <FeedbackCard title={t('dose.recorded')} />
             <p className="helper centered">{t('dose.progress', {
@@ -500,33 +884,77 @@ export default function App() {
           </>,
         }
 
-      case SCREEN.MEDICINES:
+      case SCREEN.MEDICINES: {
+        const archivedIndex = activeMedicines.length
+        const addIndex = archivedIndex + (archivedMedicines.length ? 1 : 0)
+        const activateMedicineMenu = (index) => {
+          if (archivedMedicines.length && index === archivedIndex) {
+            navigate(SCREEN.ARCHIVED_MEDICINES)
+            return
+          }
+          if (index === addIndex) {
+            navigate(SCREEN.ADD_METHOD)
+            return
+          }
+          const medicine = activeMedicines[index]
+          if (!medicine) return
+          setSelectedMedicine(medicine)
+          navigate(SCREEN.MEDICINE_DETAIL)
+        }
+
         return {
-          title: t('medicines.title'), count: medicines.length + 1,
+          title: t('medicines.title'), count: addIndex + 1,
+          left: t('common.open'), right: t('common.back'),
+          onEnter: () => activateMedicineMenu(focus),
+          onNumber: (number) => activateMedicineMenu(number - 1),
+          content: <div className="medicine-list">
+            {activeMedicines.map((medicine, index) => (
+              <MedicineRow
+                key={medicine.id}
+                medicine={`${index + 1}  ${medicineName(medicine.id)}`}
+                detail={medicineSchedule(medicine)}
+                selected={focus === index}
+                onClick={() => activateMedicineMenu(index)}
+              />
+            ))}
+            {archivedMedicines.length > 0 && (
+              <ListRow
+                label={`${archivedIndex + 1}  ${t('medicines.archived', { count: archivedMedicines.length })}`}
+                selected={focus === archivedIndex}
+                onClick={() => activateMedicineMenu(archivedIndex)}
+              />
+            )}
+            <ListRow
+              label={`${addIndex + 1}  ${t('medicines.add')}`}
+              selected={focus === addIndex}
+              onClick={() => activateMedicineMenu(addIndex)}
+            />
+          </div>,
+        }
+      }
+
+      case SCREEN.ARCHIVED_MEDICINES:
+        return {
+          title: t('medicines.archivedTitle'), count: archivedMedicines.length,
           left: t('common.open'), right: t('common.back'),
           onEnter: () => {
-            if (focus === medicines.length) navigate(SCREEN.ADD_METHOD)
-            else {
-              setSelectedMedicine(medicines[focus])
-              navigate(SCREEN.MEDICINE_DETAIL)
-            }
+            const medicine = archivedMedicines[focus]
+            if (!medicine) return
+            setSelectedMedicine(medicine)
+            navigate(SCREEN.MEDICINE_DETAIL)
           },
           onNumber: (number) => {
-            if (number === medicines.length + 1) {
-              navigate(SCREEN.ADD_METHOD)
-              return
-            }
-            const medicine = medicines[number - 1]
+            const medicine = archivedMedicines[number - 1]
             if (!medicine) return
             setSelectedMedicine(medicine)
             navigate(SCREEN.MEDICINE_DETAIL)
           },
           content: <div className="medicine-list">
-            {medicines.map((medicine, index) => (
+            {archivedMedicines.map((medicine, index) => (
               <MedicineRow
                 key={medicine.id}
                 medicine={`${index + 1}  ${medicineName(medicine.id)}`}
-                detail={medicineSchedule(medicine.id)}
+                detail={t('medicines.archivedStatus')}
                 selected={focus === index}
                 onClick={() => {
                   setSelectedMedicine(medicine)
@@ -534,19 +962,133 @@ export default function App() {
                 }}
               />
             ))}
-            <ListRow label={`${medicines.length + 1}  ${t('medicines.add')}`} selected={focus === medicines.length} onClick={() => navigate(SCREEN.ADD_METHOD)} />
           </div>,
         }
 
       case SCREEN.MEDICINE_DETAIL:
+        {
+          const reminders = medicineReminders(selectedMedicine)
+          const activateDetailAction = () => {
+            if (focus === 0) openDirectionsEditor()
+            else if (focus === 1) openRemindersEditor()
+            else if (focus === 2) archiveSelectedMedicine()
+            else openDeleteMedicine()
+          }
+          const medicineDetail = selectedMedicine.isCustom
+            ? t('medicines.manualEntry')
+            : selectedMedicine.strength
+          const directions = medicineDirections(selectedMedicine) || t('medicines.noDirections')
+          return {
+            title: t('medicines.detailTitle'), count: 4,
+            left: t('common.update'), right: t('common.back'),
+            onLeft: activateDetailAction,
+            onEnter: activateDetailAction,
+            content: <div className="medicine-detail-list">
+              <MedicineRow medicine={medicineName(selectedMedicine)} detail={medicineDetail} />
+              <ListRow
+                label={t('medicines.usage', { usage: directions })}
+                selected={focus === 0}
+                onClick={openDirectionsEditor}
+              />
+              <ListRow
+                label={t('medicines.reminders', {
+                  times: reminders.length ? reminders.join(' / ') : t('medicines.none'),
+                })}
+                selected={focus === 1}
+                onClick={openRemindersEditor}
+              />
+              <ListRow
+                label={isMedicineArchived(selectedMedicine)
+                  ? t('medicines.unarchive')
+                  : t('medicines.archive')}
+                selected={focus === 2}
+                onClick={archiveSelectedMedicine}
+              />
+              <ListRow
+                label={t('medicines.delete')}
+                state="danger"
+                selected={focus === 3}
+                onClick={openDeleteMedicine}
+              />
+            </div>,
+          }
+        }
+
+      case SCREEN.EDIT_DIRECTIONS:
         return {
-          title: t('medicines.detailTitle'), count: 3,
-          left: t('common.update'), right: t('common.back'),
-          onLeft: () => navigate(SCREEN.QUANTITY), onEnter: () => navigate(SCREEN.QUANTITY),
+          title: t('medicines.editDirectionsTitle'), count: 1,
+          left: t('common.save'), right: t('common.back'),
+          onEnter: saveDirections,
+          content: <form className="manual-form" onSubmit={(event) => {
+            event.preventDefault()
+            saveDirections()
+          }}>
+            <label htmlFor="medicine-directions">{t('medicines.directionsLabel')}</label>
+            <textarea
+              id="medicine-directions"
+              value={editDirections}
+              placeholder={t('medicines.directionsPlaceholder')}
+              onChange={(event) => setEditDirections(event.target.value)}
+              autoFocus
+            />
+            <p className="helper">{t('medicines.editDirectionsHelp')}</p>
+          </form>,
+        }
+
+      case SCREEN.EDIT_REMINDERS:
+        return {
+          title: t('medicines.editRemindersTitle'), count: reminderOptions.length + 1,
+          left: t('common.save'), right: t('common.back'),
+          onLeft: saveReminders,
+          onEnter: () => {
+            if (focus === reminderOptions.length) openCustomReminder(SCREEN.EDIT_REMINDERS)
+            else toggleReminder(reminderOptions[focus])
+          },
+          onNumber: (number) => {
+            if (number >= 1 && number <= reminderOptions.length + 1) setFocus(number - 1)
+          },
           content: <>
-            <MedicineRow medicine={medicineName(selectedMedicine.id)} detail={selectedMedicine.strength} selected={focus === 0} />
-            <ListRow label={t('medicines.usage', { usage: medicineUsage(selectedMedicine.id) })} selected={focus === 1} />
-            <ListRow label={t('medicines.reminders', { times: selectedMedicine.reminders.join(' / ') })} selected={focus === 2} />
+            <p className="prompt">{t('medicines.chooseReminders')}</p>
+            <div className="reminder-list">
+              {reminderOptions.map((time, index) => (
+                <ListRow
+                  key={time}
+                  label={`${index + 1}  ${time}`}
+                  trailing={selectedReminderTimes.includes(time) ? '✓' : '○'}
+                  selected={focus === index}
+                  onClick={() => {
+                    setFocus(index)
+                    toggleReminder(time)
+                  }}
+                />
+              ))}
+              <ListRow
+                label={`${reminderOptions.length + 1}  ${t('add.otherReminder')}`}
+                selected={focus === reminderOptions.length}
+                onClick={() => openCustomReminder(SCREEN.EDIT_REMINDERS)}
+              />
+            </div>
+          </>,
+        }
+
+      case SCREEN.DELETE_MEDICINE:
+        return {
+          title: t('medicines.deleteTitle'), count: 2,
+          left: t('common.confirm'), right: t('common.back'),
+          horizontal: true,
+          onEnter: () => {
+            if (decision === 0) deleteSelectedMedicine()
+            else goBack()
+          },
+          content: <>
+            <MedicineRow medicine={medicineName(selectedMedicine)} detail={t('medicines.deleteWarning')} />
+            <Decision
+              selected={decision}
+              left={t('medicines.deleteYes')}
+              right={t('common.cancel')}
+              onSelect={setDecision}
+              ariaLabel={t('medicines.deleteTitle')}
+            />
           </>,
         }
 
@@ -608,8 +1150,9 @@ export default function App() {
   const onRight = goBack
 
   const handleKeyDown = (event) => {
-    const isTextInput = event.target instanceof HTMLInputElement && event.target.type !== 'file'
-    if (isTextInput && event.key !== 'Enter' && event.key !== 'Escape') return
+    const isTextField = (event.target instanceof HTMLInputElement && event.target.type !== 'file')
+      || event.target instanceof HTMLTextAreaElement
+    if (isTextField && event.key !== 'Escape' && event.key !== 'SoftLeft') return
 
     const isQuantityEntry = screen === SCREEN.QUANTITY
       || (screen === SCREEN.REMINDER_ALERT && focus === 1)
@@ -628,17 +1171,21 @@ export default function App() {
 
     switch (event.key) {
       case 'ArrowUp':
-        if (!screenConfig.horizontal && screenConfig.count > 1) move(-1, screenConfig.count)
+        if (screenConfig.onArrowUp) screenConfig.onArrowUp()
+        else if (!screenConfig.horizontal && screenConfig.count > 1) move(-1, screenConfig.count)
         break
       case 'ArrowDown':
-        if (!screenConfig.horizontal && screenConfig.count > 1) move(1, screenConfig.count)
+        if (screenConfig.onArrowDown) screenConfig.onArrowDown()
+        else if (!screenConfig.horizontal && screenConfig.count > 1) move(1, screenConfig.count)
         break
       case 'ArrowLeft':
         if (screen === SCREEN.QUANTITY || (screen === SCREEN.REMINDER_ALERT && focus === 1)) adjustQuantity(-0.5)
+        else if (screenConfig.onArrowLeft) screenConfig.onArrowLeft()
         else if (screenConfig.horizontal) setDecision(0)
         break
       case 'ArrowRight':
         if (screen === SCREEN.QUANTITY || (screen === SCREEN.REMINDER_ALERT && focus === 1)) adjustQuantity(0.5)
+        else if (screenConfig.onArrowRight) screenConfig.onArrowRight()
         else if (screenConfig.horizontal) setDecision(1)
         break
       case 'Enter':

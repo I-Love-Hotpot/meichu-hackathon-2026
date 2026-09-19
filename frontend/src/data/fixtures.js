@@ -36,7 +36,10 @@ export const historyDays = [
 
 // Matches the planned API response shape. Replace this fixture with search results.
 export const medicineCandidates = [
-  { id: 'amlodipine5', strength: '5 mg', confidence: 94 },
-  { id: 'norvasc5', strength: '5 mg', confidence: 87 },
-  { id: 'amlodipine10', strength: '10 mg', confidence: 72 },
+  { id: 'amlodipine5', strength: '5 mg', confidence: 94, image: amlodipine5Image },
+  { id: 'norvasc5', strength: '5 mg', confidence: 87, image: norvasc5Image },
+  { id: 'amlodipine10', strength: '10 mg', confidence: 72, image: amlodipine10Image },
 ]
+import amlodipine5Image from '../assets/medicine/amlodipine-5.svg'
+import amlodipine10Image from '../assets/medicine/amlodipine-10.svg'
+import norvasc5Image from '../assets/medicine/norvasc-5.svg'
