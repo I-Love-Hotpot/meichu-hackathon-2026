@@ -1,6 +1,6 @@
 {
-  "name": "cloudphone-react-sample",
-  "description": "Cloud Phone sample code using React",
+  "name": "medaboutyou-frontend",
+  "description": "MedAboutYou medicine reminder UI for a 240x320 Cloud Phone",
   "private": false,
   "version": "1.0.0",
   "type": "module",
@@ -33,20 +33,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cloudmosa/cloudphone-react-sample.git"
+    "url": "git+https://github.com/I-Love-Hotpot/meichu-hackathon-2026.git"
   },
   "keywords": [
     "Cloud Phone",
-    "Phone",
-    "React",
-    "create-react-app",
-    "CRA",
-    "GitHub Pages"
+    "MedAboutYou",
+    "medicine reminder",
+    "React"
   ],
-  "author": "Tom Barrasso <barrasso.me>",
-  "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/cloudmosa/cloudphone-react-sample/issues"
-  },
-  "homepage": "https://cloudmosa.github.io/cloudphone-react-sample"
+  "license": "Apache-2.0"
 }

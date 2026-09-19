@@ -1,25 +1,36 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
-import translationEN from '../assets/locales/en/translation.json'
-import translationES from '../assets/locales/es/translation.json'
+import translationENUS from '../assets/locales/en-US/translation.json'
+import translationZHTW from '../assets/locales/zh-TW/translation.json'
 
-// Translations
 const resources = {
-  en: {
-    translation: translationEN
+  'zh-TW': {
+    translation: translationZHTW,
   },
-  es: {
-    translation: translationES,
-  }
-};
+  'en-US': {
+    translation: translationENUS,
+  },
+}
 
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'en',
-  });
+    supportedLngs: ['zh-TW', 'en-US'],
+    fallbackLng: 'zh-TW',
+    detection: {
+      order: ['localStorage', 'navigator'],
+      caches: ['localStorage'],
+      lookupLocalStorage: 'medaboutyou-language',
+      convertDetectedLanguage: (language) => (
+        language?.toLowerCase().startsWith('zh') ? 'zh-TW' : 'en-US'
+      ),
+    },
+    interpolation: {
+      escapeValue: false,
+    },
+  })
 
-export default i18n;
+export default i18n
