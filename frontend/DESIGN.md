@@ -52,7 +52,7 @@ Destructive and emergency information uses both text and color; color is never t
 
 1. Home → record today → toggle doses → completion feedback.
 2. Home → history → daily detail → update record → quantity.
-3. Home → medicines → medicine detail.
+3. Home → medicines → medicine detail → edit directions or reminder times → return to medicine detail.
 4. Medicines → add medicine → photo/file → recognition → possible medicine matches → daily-use decision → reminder → completion.
 5. Medicines → add medicine → manual name and optional description → direct local save → daily-use decision → reminder selection → completion. Manual entries never call the recognition or search API.
 6. Home → emergency information.
@@ -62,6 +62,8 @@ Destructive and emergency information uses both text and color; color is never t
 All current data is fixture data in `src/data/fixtures.js`. Today’s completion toggles persist in `localStorage` under `medaboutyou-today-doses`.
 
 User-entered medicines persist the submitted `name` and optional `description` immediately under `medaboutyou-user-medicines`. They then continue to the same daily-use and reminder steps as recognized medicines. The description is shown as Directions in medicine details, and selected reminder times are written back to the same local record. User-entered values are displayed as data, are not translated, and do not enter recognition or candidate-search states.
+
+Directions and reminders are editable from every medicine detail screen. Updates to fixture medicines persist as user overrides under `medaboutyou-medicine-settings`; updates to manually entered medicines are written back to their existing `medaboutyou-user-medicines` record. Saving either field returns to medicine details and never enters the dose-history flow.
 
 ### Possible medicine cards
 

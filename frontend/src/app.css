@@ -230,6 +230,11 @@
   line-height: 18px;
 }
 
+.helper.input-error {
+  color: var(--danger);
+  font-weight: 700;
+}
+
 .centered {
   text-align: center;
 }
@@ -364,6 +369,11 @@
 .manual-form textarea {
   height: 62px;
   resize: none;
+}
+
+.manual-form [aria-invalid="true"] {
+  border-color: var(--danger);
+  background: var(--danger-soft);
 }
 
 .manual-description {
@@ -752,6 +762,12 @@
 
   .helper {
     display: none;
+  }
+
+  .helper.input-error {
+    display: block;
+    font-size: 8px;
+    line-height: 9px;
   }
 
   .decision {

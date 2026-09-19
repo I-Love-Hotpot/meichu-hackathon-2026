@@ -34,6 +34,8 @@ The photo flow uses the device's native camera or image picker via `<input type=
 
 Manual medicine entry stores a required name and optional description directly in `localStorage`; it deliberately skips recognition and API search, then continues to daily-use and reminder setup. The description is displayed as Directions and selected reminder times are stored with the medicine.
 
+Directions and reminder times can be edited for both fixture and manually entered medicines. Reminder editing accepts comma-separated 24-hour times such as `08:00, 20:00`; saving returns to the same medicine detail screen.
+
 The UI supports `zh-TW` and `en-US` through the existing i18next setup. Choose item `5` on the home screen to change language; the choice persists in `localStorage`.
 
 See [DESIGN.md](./DESIGN.md) for the complete screen, token, interaction, component, and backend-handoff requirements.
