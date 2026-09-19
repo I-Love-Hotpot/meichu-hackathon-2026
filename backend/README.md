@@ -32,6 +32,7 @@ npm start
 - `GET /api-docs/swagger.json`
 - `POST /api/sms/test` (temporary, disabled by default)
 - `GET /api/medicine?license_number=許可證字號` (look up one medicine in MariaDB)
+- `POST /api/medicine/recognize` (recognize an uploaded medicine image with the local model)
 - `GET /api/medicine/search?q=medicine-name` (CSV medicine search and English translation)
 - `POST /api/medicine/chat` (Gemini medicine assistant)
 
@@ -54,6 +55,39 @@ The interactive Swagger UI is available at `http://localhost:3001/api-docs`.
 - `GOOGLE_TRANSLATE_API_KEY`: server-only Google Cloud API key with Cloud Translation API enabled. Required when matched CSV fields contain Chinese text.
 - `GOOGLE_TRANSLATE_TIMEOUT_MS`: Translation API deadline from `1000` to `120000`; default `15000`.
 - `MEDICINE_CSV_PATH`: optional CSV path (relative paths resolve from the server working directory); empty uses `backend/resources/42_2.csv`. Invalid or unreadable files return HTTP 503, without falling back to model memory.
+- `MEDICINE_RECOGNIZER_SCRIPT`: optional path override for the Python recognizer. Empty uses the bundled `pill_inference_package/inference.py`.
+- `MEDICINE_RECOGNIZER_PYTHON`: Python executable used for the recognizer; default `python3`.
+- `MEDICINE_RECOGNIZER_TIMEOUT_MS`: recognition deadline from `1000` to `120000`; default `30000`.
+
+## Recognize a medicine image
+
+`POST /api/medicine/recognize` accepts one `multipart/form-data` file named `image` (JPEG, PNG, or WebP; maximum 10 MiB). It runs the bundled local script as:
+
+```bash
+python3 pill_inference_package/inference.py \
+  --image /temporary/uploaded-image.png \
+  --output /temporary/prediction.json
+```
+
+The script loads `pill_inference_package/models/pill_detector.pt` and writes its prediction JSON to standard output. Each prediction includes the full `license_number`; the endpoint accepts up to three predictions.
+
+```json
+{
+  "status": "candidates_found",
+  "predictions": [
+    { "pill_id": "000386", "license_number": "內衛成製字第000386號" }
+  ]
+}
+```
+
+The backend uses those IDs to perform the same MariaDB lookup as `GET /api/medicine`, returning each input ID with its matching record (or `null` when no record exists).
+
+The backend Docker images install a CPU-only PyTorch runtime and the inference package dependencies. The model, inference source, configuration, and CSV are bundled into the backend image, so no host-side Python installation or model mount is required.
+
+```bash
+curl http://localhost:3001/api/medicine/recognize \
+  -F 'image=@./pill.jpg;type=image/jpeg'
+```
 
 ## Look up a medicine by license number
 

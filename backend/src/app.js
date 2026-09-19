@@ -5,6 +5,8 @@ import healthRoutes from "./routes/health.routes.js";
 import smsRoutes from "./routes/sms.routes.js";
 import medicineRoutes from "./routes/medicine.routes.js";
 import medicineDetailRoutes from "./routes/medicine-detail.routes.js";
+import medicineRecognizeRoutes from "./routes/medicine-recognize.routes.js";
+import multipart from "@fastify/multipart";
 
 const port = Number(process.env.PORT || 3001);
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "*")
@@ -22,6 +24,7 @@ await app.register(cors, {
   origin: allowedOrigins.includes("*") ? true : allowedOrigins,
   credentials: true,
 });
+await app.register(multipart, { limits: { files: 1, fileSize: 10 * 1024 * 1024 } });
 
 app.setNotFoundHandler((request, reply) => {
   return reply.code(404).send({
@@ -54,6 +57,7 @@ await app.register(docsRoutes);
 await app.register(smsRoutes, { enableTestSmsEndpoint });
 await app.register(medicineRoutes);
 await app.register(medicineDetailRoutes);
+await app.register(medicineRecognizeRoutes);
 
 try {
   await app.listen({ port, host: "0.0.0.0" });

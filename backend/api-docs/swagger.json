@@ -320,6 +320,98 @@
         }
       }
     },
+    "/api/medicine/recognize": {
+      "post": {
+        "tags": [
+          "Medicine"
+        ],
+        "summary": "Recognize a medicine image with the local model",
+        "description": "Uploads one JPEG, PNG, or WebP image (maximum 10 MiB). The configured local recognizer returns up to three medicine license_number values; each is looked up in MariaDB using the same data source as GET /api/medicine.",
+        "operationId": "recognizeMedicineImage",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "image"
+                ],
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPEG, PNG, or WebP image; maximum 10 MiB."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recognition completed. medicine is null when an ID is not present in MariaDB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicineRecognitionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or unsupported image upload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Image exceeds 10 MiB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Recognizer failed or returned invalid output.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Recognizer or medicine database is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Recognizer timed out.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/medicine": {
       "get": {
         "tags": [
@@ -987,6 +1079,78 @@
           }
         },
         "description": "MariaDB medicines 資料表中的藥品原始資訊；欄位名稱與資料庫一致。"
+      },
+      "MedicineRecognitionResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "recognition",
+          "medicines"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "recognition": {
+            "type": "object",
+            "required": [
+              "ids"
+            ],
+            "properties": {
+              "ids": {
+                "type": "array",
+                "maxItems": 3,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "status": {
+                "type": "string"
+              },
+              "detected_features": {
+                "type": "object"
+              },
+              "detection_source": {
+                "type": "string"
+              },
+              "predictions": {
+                "type": "array",
+                "maxItems": 3,
+                "items": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "medicines": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "required": [
+                "license_number",
+                "medicine"
+              ],
+              "properties": {
+                "license_number": {
+                  "type": "string"
+                },
+                "medicine": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/MedicineDatabaseRecord"
+                    }
+                  ],
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
       },
       "MedicineLookupResponse": {
         "type": "object",
