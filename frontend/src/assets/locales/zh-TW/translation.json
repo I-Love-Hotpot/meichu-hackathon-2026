@@ -19,6 +19,14 @@
     "noLeftAction": "無左軟鍵",
     "noRightAction": "無右軟鍵"
   },
+  "phoneSetup": {
+    "title": "歡迎使用",
+    "prompt": "請輸入您的電話號碼,以接收用藥提醒簡訊。",
+    "phoneLabel": "電話號碼",
+    "phonePlaceholder": "+886912345678",
+    "help": "按下確認以儲存,此畫面僅會出現一次。",
+    "invalid": "請輸入有效的電話號碼,例如 +886912345678。"
+  },
   "home": {
     "title": "主選單",
     "medicineRecognition": "藥品辨識",

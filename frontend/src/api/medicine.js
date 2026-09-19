@@ -68,7 +68,7 @@ export class MedicineApiError extends Error {
   }
 }
 
-async function requestJson(path, options = {}) {
+export async function requestJson(path, options = {}) {
   let response;
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {

@@ -108,6 +108,101 @@
         }
       }
     },
+    "/api/reminders/register": {
+      "post": {
+        "summary": "Register a phone number for medication reminder SMS",
+        "description": "Registers (or updates) the phone number and daily reminder times (\"HH:MM\", 24-hour) the backend uses to send an automatic medication reminder SMS. The backend checks every registered phone number periodically and sends the predefined `sms_appointment_reminders` template body when the current time (Asia/Taipei) matches one of the phone's reminder times.",
+        "operationId": "registerReminderPhone",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReminderRegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reminder registration saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReminderRegisterResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid phone number or reminder times",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to save the reminder registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Unregister a phone number from medication reminder SMS",
+        "operationId": "unregisterReminderPhone",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReminderUnregisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reminder registration removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid phone number",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to remove the reminder registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/medicine/chat": {
       "post": {
         "tags": [
@@ -663,6 +758,76 @@
           "to": {
             "type": "string",
             "example": "+886912345678"
+          }
+        }
+      },
+      "ReminderRegisterRequest": {
+        "type": "object",
+        "required": [
+          "phone",
+          "times"
+        ],
+        "properties": {
+          "phone": {
+            "type": "string",
+            "example": "+886912345678"
+          },
+          "times": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "example": "08:00"
+            },
+            "description": "24-hour \"HH:MM\" reminder times"
+          }
+        }
+      },
+      "ReminderRegisterResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "phone",
+          "times"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "phone": {
+            "type": "string",
+            "example": "+886912345678"
+          },
+          "times": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "example": "08:00"
+            }
+          }
+        }
+      },
+      "ReminderUnregisterRequest": {
+        "type": "object",
+        "required": [
+          "phone"
+        ],
+        "properties": {
+          "phone": {
+            "type": "string",
+            "example": "+886912345678"
+          }
+        }
+      },
+      "OkResponse": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
           }
         }
       },
