@@ -2,13 +2,13 @@
   "openapi": "3.0.3",
   "info": {
     "title": "CloudPhone Widget Backend API",
-    "version": "v1.2.0",
+    "version": "v1.3.0",
     "description": "API for the backend of the custom CloudPhone widget."
   },
   "servers": [
     {
-      "url": "http://localhost:3001",
-      "description": "Local development server"
+      "url": "/",
+      "description": "目前開啟 Swagger 的 API 伺服器（支援本機及遠端連接埠轉送）"
     }
   ],
   "paths": {
@@ -313,6 +313,102 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/medicine": {
+      "get": {
+        "tags": [
+          "Medicine"
+        ],
+        "summary": "依許可證字號查詢藥品資訊（MariaDB）",
+        "operationId": "getMedicineByLicenseNumber",
+        "description": "提供完整的 license_number，從 MariaDB 的 medicines 資料表查詢對應藥品。回傳資料表編號 id、許可證字號 license_number、中英文藥名、形狀、顏色、切線／刻痕 score_line、尺寸 size、標註 imprint_1 與 imprint_2，以及圖片連結 image_url。\n\n使用完整字號比對，不支援部分字號搜尋；輸入前後空白會移除。資料保留資料庫原始內容，不呼叫翻譯或 Gemini。空字串與 null 代表未提供資料，尺寸未註明單位，多個值或圖片連結保留 ;;; 分隔符號。若資料庫有重複許可證字號，回傳 id 最小的一筆。",
+        "parameters": [
+          {
+            "name": "license_number",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "\\S",
+              "description": "藥品完整許可證字號，例如「內衛成製字第000386號」。必填，最多 255 個字元，不可為空白或重複傳入；輸入前後空白會移除。"
+            },
+            "example": "內衛成製字第000386號",
+            "description": "藥品完整許可證字號，例如「內衛成製字第000386號」。必填，最多 255 個字元，不可為空白或重複傳入；輸入前後空白會移除。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查詢成功，medicine 包含對應藥品的 11 個欄位。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicineLookupResponse"
+                },
+                "example": {
+                  "ok": true,
+                  "medicine": {
+                    "id": 2,
+                    "license_number": "內衛成製字第000386號",
+                    "chinese_name": "建功丸",
+                    "english_name": "CHENG KONG PILL",
+                    "shape": "其他",
+                    "color": "棕",
+                    "score_line": "無",
+                    "size": "8",
+                    "imprint_1": "",
+                    "imprint_2": "",
+                    "image_url": "https://mcp.fda.gov.tw/insert/shapeImg/89db57ae-5c85-47b8-9d74-351ecad719e6?c=o"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "查詢參數錯誤：未提供、空白、超過 255 字元、重複傳入 license_number，或含有其他查詢參數。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "ok": false,
+                  "error": "Provide a non-empty license_number of at most 255 characters."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "查無此許可證字號對應的藥品。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "ok": false,
+                  "error": "Medicine not found."
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "資料庫連線或查詢失敗，請稍後再試。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "ok": false,
+                  "error": "The medicine database is temporarily unavailable."
                 }
               }
             }
@@ -791,6 +887,126 @@
           "total",
           "recordCount"
         ]
+      },
+      "MedicineLookupQuery": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "license_number"
+        ],
+        "properties": {
+          "license_number": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "\\S",
+            "description": "藥品完整許可證字號，例如「內衛成製字第000386號」。必填，最多 255 個字元，不可為空白或重複傳入；輸入前後空白會移除。"
+          }
+        }
+      },
+      "MedicineDatabaseRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "license_number",
+          "chinese_name",
+          "english_name",
+          "shape",
+          "color",
+          "score_line",
+          "size",
+          "imprint_1",
+          "imprint_2",
+          "image_url"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "藥品編號，對應資料表 medicines.id。",
+            "example": 2
+          },
+          "license_number": {
+            "type": "string",
+            "description": "許可證字號。",
+            "example": "內衛成製字第000386號"
+          },
+          "chinese_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "中文藥名。",
+            "example": "建功丸"
+          },
+          "english_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "英文藥名。",
+            "example": "CHENG KONG PILL"
+          },
+          "shape": {
+            "type": "string",
+            "nullable": true,
+            "description": "形狀。",
+            "example": "其他"
+          },
+          "color": {
+            "type": "string",
+            "nullable": true,
+            "description": "顏色。",
+            "example": "棕"
+          },
+          "score_line": {
+            "type": "string",
+            "nullable": true,
+            "description": "切線／刻痕。",
+            "example": "無"
+          },
+          "size": {
+            "type": "string",
+            "nullable": true,
+            "description": "外觀尺寸，保留來源文字；來源未註明單位。",
+            "example": "8"
+          },
+          "imprint_1": {
+            "type": "string",
+            "nullable": true,
+            "description": "標註一。",
+            "example": ""
+          },
+          "imprint_2": {
+            "type": "string",
+            "nullable": true,
+            "description": "標註二。",
+            "example": ""
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true,
+            "description": "圖片連結；多個連結保留來源的 ;;; 分隔符號。",
+            "example": "https://mcp.fda.gov.tw/insert/shapeImg/89db57ae-5c85-47b8-9d74-351ecad719e6?c=o"
+          }
+        },
+        "description": "MariaDB medicines 資料表中的藥品原始資訊；欄位名稱與資料庫一致。"
+      },
+      "MedicineLookupResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "medicine"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ],
+            "description": "查詢成功時為 true。"
+          },
+          "medicine": {
+            "$ref": "#/components/schemas/MedicineDatabaseRecord"
+          }
+        }
       }
     }
   }
