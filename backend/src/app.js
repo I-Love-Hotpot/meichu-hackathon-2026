@@ -4,6 +4,7 @@ import docsRoutes from "./routes/docs.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 import smsRoutes from "./routes/sms.routes.js";
 import medicineRoutes from "./routes/medicine.routes.js";
+import medicineDetailRoutes from "./routes/medicine-detail.routes.js";
 
 const port = Number(process.env.PORT || 3001);
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "*")
@@ -52,6 +53,7 @@ await app.register(healthRoutes);
 await app.register(docsRoutes);
 await app.register(smsRoutes, { enableTestSmsEndpoint });
 await app.register(medicineRoutes);
+await app.register(medicineDetailRoutes);
 
 try {
   await app.listen({ port, host: "0.0.0.0" });

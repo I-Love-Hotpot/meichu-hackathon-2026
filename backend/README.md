@@ -31,6 +31,7 @@ npm start
 - `GET /health`
 - `GET /api-docs/swagger.json`
 - `POST /api/sms/test` (temporary, disabled by default)
+- `GET /api/medicine?license_number=許可證字號` (look up one medicine in MariaDB)
 - `GET /api/medicine/search?q=medicine-name` (CSV medicine search and English translation)
 - `POST /api/medicine/chat` (Gemini medicine assistant)
 
@@ -41,6 +42,7 @@ The interactive Swagger UI is available at `http://localhost:3001/api-docs`.
 
 - `PORT`: server port, default `3001`
 - `ALLOWED_ORIGINS`: allowed CORS origins, comma separated
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_DATABASE`: MariaDB connection for the license lookup API. Defaults are `127.0.0.1`, `3306`, `root`, empty password, and `backend`. Development Compose supplies `dev-db:3306` and reads credentials from the root `.env`. For a production backend, configure the same variables in its deployment environment.
 - `TWILIO_ACCOUNT_SID`: Twilio Account SID
 - `TWILIO_AUTH_TOKEN`: Twilio Auth Token
 - `TWILIO_FROM_NUMBER`: Twilio phone number used as the SMS sender, in E.164 format
@@ -52,6 +54,40 @@ The interactive Swagger UI is available at `http://localhost:3001/api-docs`.
 - `GOOGLE_TRANSLATE_API_KEY`: server-only Google Cloud API key with Cloud Translation API enabled. Required when matched CSV fields contain Chinese text.
 - `GOOGLE_TRANSLATE_TIMEOUT_MS`: Translation API deadline from `1000` to `120000`; default `15000`.
 - `MEDICINE_CSV_PATH`: optional CSV path (relative paths resolve from the server working directory); empty uses `backend/resources/42_2.csv`. Invalid or unreadable files return HTTP 503, without falling back to model memory.
+
+## Look up a medicine by license number
+
+`GET /api/medicine` queries the `medicines` database table using the complete `license_number`. It returns the original stored values, with no translation or Gemini request. Leading and trailing whitespace in the query is ignored. If duplicate license identifiers exist, the row with the lowest `id` is returned.
+
+```bash
+curl --get http://localhost:3001/api/medicine \
+  --data-urlencode 'license_number=內衛成製字第000386號'
+```
+
+```json
+{
+  "ok": true,
+  "medicine": {
+    "id": 2,
+    "license_number": "內衛成製字第000386號",
+    "chinese_name": "建功丸",
+    "english_name": "CHENG KONG PILL",
+    "shape": "其他",
+    "color": "棕",
+    "score_line": "無",
+    "size": "8",
+    "imprint_1": "",
+    "imprint_2": "",
+    "image_url": "https://mcp.fda.gov.tw/insert/shapeImg/89db57ae-5c85-47b8-9d74-351ecad719e6?c=o"
+  }
+}
+```
+
+`id` is the database record number; `score_line` is the pill's score line (切線／刻痕). Missing values remain empty strings or `null`, as stored in MariaDB. `size` remains a string with no assumed unit. Multiple values or image links retain the source's `;;;` separator.
+
+Errors use `{ "ok": false, "error": "message" }`: 400 for a missing, blank, repeated, or oversized license number (maximum 255 characters), or unexpected query parameters; 404 for no matching record; 503 for database connection/query failures. No database credentials or SQL details are returned.
+
+Development Compose connects the backend to the database through its internal network. The development database port is not published to the host; run the backend through Compose, or configure `DB_HOST`/`DB_PORT` for a database reachable from your local process. The existing search/chat endpoints still use the CSV described below.
 
 ## Medicine questions and CSV source
 
@@ -112,7 +148,7 @@ Translation uses the official [Cloud Translation Basic v2 REST method](https://c
 npm test
 ```
 
-Tests mock both Gemini and Google Cloud Translation, require no API keys, and consume no quota. They cover CSV parsing, all-record loading, search, candidate selection, follow-ups, translation batching/caching/errors, provider failures, Swagger, and UI contracts.
+Tests mock the database, Gemini, and Google Cloud Translation, require no database or API keys, and consume no quota. They cover license lookup, parameterized SQL, connection cleanup, CSV parsing, all-record loading, search, candidate selection, follow-ups, translation batching/caching/errors, provider failures, Swagger, and UI contracts.
 
 ## Sending SMS from backend services
 
