@@ -14,9 +14,6 @@ services:
     environment:
       DB_HOST: dev-db
       DB_PORT: 3306
-      DB_USER: ${DB_USER:-root}
-      DB_PASSWORD: ${DB_PASSWORD:-root}
-      DB_DATABASE: ${DB_DATABASE:-backend}
       # - REDIS_HOST=redis
     volumes:
       - ./backend:/app/
