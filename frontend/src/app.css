@@ -1,0 +1,388 @@
+:root {
+  --ink: #132a2f;
+  --screen: #fafcf7;
+  --header: #e7f3ee;
+  --focus: #d6f1e7;
+  --focus-stroke: #007c72;
+  --divider: #b9c9c5;
+  --warning: #fff2c7;
+  --danger: #b6382e;
+  --danger-soft: #fce5e3;
+  --success: #2b7653;
+  --success-soft: #ddf3e7;
+  --secondary: #60716e;
+}
+
+.device-shell {
+  width: 240px;
+  height: 320px;
+  display: grid;
+  grid-template-rows: 40px 240px 40px;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--screen);
+  outline: none;
+}
+
+.app-header,
+.softkey-bar {
+  user-select: none;
+}
+
+.app-header {
+  height: 40px;
+  padding: 0 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  color: var(--ink);
+  background: var(--header);
+}
+
+.app-header--emergency {
+  color: #8f241e;
+  background: var(--danger-soft);
+}
+
+.app-header h1 {
+  grid-column: 2;
+  max-width: 180px;
+  margin: 0;
+  overflow: hidden;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 32px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-meta {
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.header-meta:last-child {
+  text-align: right;
+}
+
+.screen-content {
+  height: 240px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+  background: var(--screen);
+}
+
+.screen-content button,
+.softkey-bar button,
+.manual-form input {
+  font: inherit;
+}
+
+.list-row,
+.medicine-row,
+.decision button,
+.quantity-picker {
+  border: 1px solid var(--divider);
+  border-radius: 8px;
+  color: var(--ink);
+  background: white;
+}
+
+.list-row,
+.medicine-row {
+  width: 100%;
+  min-height: 43px;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  appearance: none;
+}
+
+.list-row {
+  justify-content: space-between;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+}
+
+.list-row--danger {
+  border-color: #dba7a3;
+  background: var(--danger-soft);
+}
+
+.list-row--success {
+  border-color: #9cc8ae;
+  background: var(--success-soft);
+}
+
+.is-selected,
+.list-row.is-selected,
+.medicine-row.is-selected,
+.decision button.is-selected,
+.quantity-picker.is-selected {
+  border: 3px solid var(--focus-stroke);
+  background: var(--focus);
+  font-weight: 900;
+  outline: none;
+}
+
+.medicine-row {
+  min-height: 58px;
+  gap: 8px;
+}
+
+.checkmark {
+  width: 22px;
+  flex: 0 0 22px;
+  color: var(--secondary);
+  font-size: 20px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.checkmark.is-checked {
+  color: var(--success);
+}
+
+.medicine-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.medicine-copy strong {
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.medicine-copy small {
+  color: var(--secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.prompt,
+.helper,
+.emergency-line {
+  margin: 0;
+}
+
+.prompt {
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 22px;
+}
+
+.helper {
+  color: var(--secondary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.centered {
+  text-align: center;
+}
+
+.decision {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.decision button {
+  height: 52px;
+  font-size: 18px;
+  font-weight: 900;
+  appearance: none;
+}
+
+.quantity-picker {
+  width: 100%;
+  height: 64px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.quantity-picker button {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  color: var(--ink);
+  background: transparent;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.quantity-picker strong {
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.feedback-card {
+  width: 100%;
+  min-height: 118px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 12px;
+  background: var(--success-soft);
+  text-align: center;
+}
+
+.feedback-card--danger {
+  background: var(--danger-soft);
+}
+
+.feedback-mark {
+  color: var(--success);
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 40px;
+}
+
+.feedback-card--danger .feedback-mark {
+  color: var(--danger);
+}
+
+.feedback-card strong {
+  font-size: 20px;
+  line-height: 28px;
+}
+
+.processing {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.progress {
+  width: 100%;
+  height: 16px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #dce5e2;
+}
+
+.progress span {
+  width: 68%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: var(--focus-stroke);
+  animation: progress-pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes progress-pulse {
+  to { opacity: 0.65; }
+}
+
+.manual-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.manual-form label {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.manual-form input {
+  width: 100%;
+  height: 52px;
+  padding: 10px 12px;
+  border: 3px solid var(--focus-stroke);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--focus);
+  font-size: 16px;
+  outline: none;
+}
+
+.emergency-line {
+  padding: 8px 10px;
+  border-left: 4px solid var(--danger);
+  color: #8f241e;
+  background: var(--danger-soft);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.softkey-bar {
+  height: 40px;
+  display: grid;
+  grid-template-columns: 1fr 44px 1fr;
+  color: white;
+  background: var(--ink);
+}
+
+.softkey-bar button {
+  min-width: 0;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  color: white;
+  background: transparent;
+  font-size: 16px;
+  font-weight: 900;
+  appearance: none;
+}
+
+.softkey-bar button:first-child {
+  justify-content: flex-start;
+}
+
+.softkey-bar button:nth-child(2) {
+  justify-content: center;
+  padding: 0;
+}
+
+.softkey-bar button:last-child {
+  justify-content: flex-end;
+}
+
+.softkey-bar svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  fill: currentColor;
+}
+
+.softkey-bar button:disabled {
+  opacity: 0;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress span { animation: none; }
+}
