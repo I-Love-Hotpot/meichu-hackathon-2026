@@ -30,6 +30,7 @@ const SCREEN = {
   REMINDER_SETUP: "reminder-setup",
   ADD_COMPLETE: "add-complete",
   REMINDER_ALERT: "reminder-alert",
+  DOSE_MENU: "dose-menu",
   RECORD_TODAY: "record-today",
   RECORD_COMPLETE: "record-complete",
   HISTORY: "history",
@@ -44,11 +45,41 @@ const SCREEN = {
   ARCHIVED_MEDICINES: "archived-medicines",
   DELETE_MEDICINE: "delete-medicine",
   EMERGENCY: "emergency",
+  MEDICINE_CHAT_MENU: "medicine-chat-menu",
+  MEDICINE_CHAT_SEARCH_MENU: "medicine-chat-search-menu",
+  MEDICINE_CHAT_MEDICINE: "medicine-chat-medicine",
+  MEDICINE_CHAT_BAG: "medicine-chat-bag",
+  MEDICINE_CHAT_CONTEXT: "medicine-chat-context",
+  MEDICINE_CHAT_ASSISTANT_MENU: "medicine-chat-assistant-menu",
+  MEDICINE_CHAT_HISTORY: "medicine-chat-history",
   MEDICINE_CHAT: "medicine-chat",
   LANGUAGE: "language",
 };
 
 const HISTORY_KEY = "medaboutyou";
+const MOCK_CHAT_MEDICINES = [
+  {
+    recordId: "mock-aspirin-100",
+    displayName: "ASPIRIN 100 MG ENTERIC-COATED TABLETS",
+    englishName: "ASPIRIN",
+    licenseNumber: "Mock result 01",
+    isMock: true,
+  },
+  {
+    recordId: "mock-acetaminophen-500",
+    displayName: "ACETAMINOPHEN 500 MG TABLETS",
+    englishName: "ACETAMINOPHEN",
+    licenseNumber: "Mock result 02",
+    isMock: true,
+  },
+  {
+    recordId: "mock-amoxicillin-500",
+    displayName: "AMOXICILLIN 500 MG CAPSULES",
+    englishName: "AMOXICILLIN",
+    licenseNumber: "Mock result 03",
+    isMock: true,
+  },
+];
 const SCREEN_VALUES = new Set(Object.values(SCREEN));
 const LANGUAGE_CODES = ["zh-TW", "en-US"];
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -152,6 +183,12 @@ export default function App() {
     SCREEN.REMINDER_SETUP,
   );
   const [reminderInputError, setReminderInputError] = useState(false);
+  const [chatSearchQuery, setChatSearchQuery] = useState("");
+  const [chatSearchResult, setChatSearchResult] = useState(null);
+  const [chatSearching, setChatSearching] = useState(false);
+  const [chatMedicine, setChatMedicine] = useState(null);
+  const [chatRecognitionText, setChatRecognitionText] = useState("");
+  const [chatEditingField, setChatEditingField] = useState(null);
   const [selectedMedicine, setSelectedMedicine] = useState(medicines[0]);
   const [selectedCandidate, setSelectedCandidate] = useState(
     medicineCandidates[0],
@@ -163,6 +200,8 @@ export default function App() {
   const fileInputRef = useRef(null);
   const shellRef = useRef(null);
   const matchScrollRef = useRef(null);
+  const medicineChatRef = useRef(null);
+  const chatSearchTimerRef = useRef(null);
   const quantityBufferRef = useRef("");
   const quantityTimerRef = useRef(null);
   const pendingResetRef = useRef(null);
@@ -238,6 +277,31 @@ export default function App() {
       imageAlt: t("matchCard.imageAlt", { name }),
     };
   });
+  const chatBagCandidates = activeMedicines.map((medicine) => {
+    const reminders = medicineReminders(medicine);
+    const name = medicineName(medicine);
+    return {
+      id: medicine.id,
+      name,
+      genericName: name,
+      sourceMedicine: medicine,
+      details: [
+        ...(medicine.strength
+          ? [{ label: t("chat.strength"), value: medicine.strength }]
+          : []),
+        {
+          label: t("chat.directions"),
+          value: medicineDirections(medicine) || t("medicines.noDirections"),
+        },
+        {
+          label: t("chat.reminders"),
+          value: reminders.length
+            ? reminders.join(" / ")
+            : t("medicines.none"),
+        },
+      ],
+    };
+  });
 
   const persistCurrentFocus = (value = focus) => {
     const entry = window.history.state;
@@ -283,6 +347,61 @@ export default function App() {
 
   const goBack = () => {
     window.history.back();
+  };
+
+  const clearChatSetup = () => {
+    window.clearTimeout(chatSearchTimerRef.current);
+    chatSearchTimerRef.current = null;
+    setChatSearchQuery("");
+    setChatSearchResult(null);
+    setChatSearching(false);
+    setChatMedicine(null);
+    setChatRecognitionText("");
+    setChatEditingField(null);
+  };
+
+  const startMedicineChat = (fromFocus = focus) => {
+    clearChatSetup();
+    navigate(SCREEN.MEDICINE_CHAT_MENU, fromFocus);
+  };
+
+  const completeChatSetup = () => {
+    setChatEditingField(null);
+    navigate(SCREEN.MEDICINE_CHAT);
+  };
+
+  const enterChatInputMode = (field) => {
+    setChatEditingField(field);
+  };
+
+  const leaveChatInputMode = () => {
+    setChatEditingField(null);
+    window.requestAnimationFrame(() => shellRef.current?.focus());
+  };
+
+  const searchChatMedicine = () => {
+    const query = chatSearchQuery.trim();
+    if (query.length < 2 || chatSearching) return;
+
+    window.clearTimeout(chatSearchTimerRef.current);
+    setChatEditingField(null);
+    setChatSearching(true);
+    setChatSearchResult(null);
+
+    chatSearchTimerRef.current = window.setTimeout(() => {
+      const normalizedQuery = query.toLocaleLowerCase();
+      const matches = MOCK_CHAT_MEDICINES.filter((medicine) =>
+        [medicine.displayName, medicine.englishName, medicine.licenseNumber]
+          .join(" ")
+          .toLocaleLowerCase()
+          .includes(normalizedQuery),
+      );
+      const records = matches.length ? matches : MOCK_CHAT_MEDICINES;
+      setChatSearchResult({ total: records.length, records, mock: true });
+      setChatSearching(false);
+      setFocus(1);
+      chatSearchTimerRef.current = null;
+    }, 350);
   };
 
   useEffect(() => {
@@ -365,6 +484,7 @@ export default function App() {
   useEffect(() => {
     shellRef.current?.focus();
     if (screen !== SCREEN.MANUAL) setManualEditingField(null);
+    setChatEditingField(null);
     quantityBufferRef.current = "";
     window.clearTimeout(quantityTimerRef.current);
   }, [screen]);
@@ -382,7 +502,13 @@ export default function App() {
     document.documentElement.lang = currentLanguage;
   }, [currentLanguage]);
 
-  useEffect(() => () => window.clearTimeout(quantityTimerRef.current), []);
+  useEffect(
+    () => () => {
+      window.clearTimeout(quantityTimerRef.current);
+      window.clearTimeout(chatSearchTimerRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (screen !== SCREEN.RECOGNIZING) return undefined;
@@ -621,11 +747,15 @@ export default function App() {
 
   const homeItems = useMemo(
     () => [
-      { label: t("home.recordToday"), target: SCREEN.RECORD_TODAY },
-      { label: t("home.history"), target: SCREEN.HISTORY },
+      { label: t("home.medicineRecognition"), target: SCREEN.ADD_METHOD },
+      {
+        label: t("home.medicineQuestions"),
+        target: SCREEN.MEDICINE_CHAT_MENU,
+      },
+      { label: t("home.recordMedicine"), target: SCREEN.DOSE_MENU },
       { label: t("home.myMedicines"), target: SCREEN.MEDICINES },
       { label: t("home.emergency"), target: SCREEN.EMERGENCY, state: "danger" },
-      { label: t("home.medicineQuestions"), target: SCREEN.MEDICINE_CHAT },
+      { label: t("home.language"), target: SCREEN.LANGUAGE },
     ],
     [t],
   );
@@ -641,14 +771,22 @@ export default function App() {
           left: t("common.select"),
           right: t("common.exit"),
           count: homeItems.length,
-          onEnter: () => navigate(homeItems[focus].target),
+          onEnter: () => {
+            const item = homeItems[focus];
+            if (item.target === SCREEN.MEDICINE_CHAT_MENU)
+              startMedicineChat();
+            else navigate(item.target);
+          },
           onNumber: (number) => {
             if (number === 9) {
               navigate(SCREEN.REMINDER_ALERT);
               return;
             }
-            if (homeItems[number - 1])
-              navigate(homeItems[number - 1].target, number - 1);
+            const item = homeItems[number - 1];
+            if (!item) return;
+            if (item.target === SCREEN.MEDICINE_CHAT_MENU)
+              startMedicineChat(number - 1);
+            else navigate(item.target, number - 1);
           },
           content: (
             <div className="dense-list">
@@ -658,7 +796,11 @@ export default function App() {
                   label={`${index + 1}  ${item.label}`}
                   state={item.state}
                   selected={focus === index}
-                  onClick={() => navigate(item.target, index)}
+                  onClick={() => {
+                    if (item.target === SCREEN.MEDICINE_CHAT_MENU)
+                      startMedicineChat(index);
+                    else navigate(item.target, index);
+                  }}
                 />
               ))}
             </div>
@@ -1040,6 +1182,37 @@ export default function App() {
           ),
         };
 
+      case SCREEN.DOSE_MENU: {
+        const menuItems = [t("home.recordToday"), t("home.history")];
+        const openDoseSection = (index = focus) => {
+          navigate(index === 0 ? SCREEN.RECORD_TODAY : SCREEN.HISTORY, index);
+        };
+
+        return {
+          title: t("home.recordMedicine"),
+          count: menuItems.length,
+          left: t("common.select"),
+          right: t("common.back"),
+          onEnter: () => openDoseSection(),
+          onNumber: (number) => {
+            if (number >= 1 && number <= menuItems.length)
+              openDoseSection(number - 1);
+          },
+          content: (
+            <div className="dense-list">
+              {menuItems.map((label, index) => (
+                <ListRow
+                  key={label}
+                  label={`${index + 1}  ${label}`}
+                  selected={focus === index}
+                  onClick={() => openDoseSection(index)}
+                />
+              ))}
+            </div>
+          ),
+        };
+      }
+
       case SCREEN.RECORD_TODAY:
         return {
           title: t("dose.recordTodayTitle"),
@@ -1214,14 +1387,10 @@ export default function App() {
 
       case SCREEN.MEDICINES: {
         const archivedIndex = activeMedicines.length;
-        const addIndex = archivedIndex + (archivedMedicines.length ? 1 : 0);
+        const itemCount = archivedIndex + (archivedMedicines.length ? 1 : 0);
         const activateMedicineMenu = (index) => {
           if (archivedMedicines.length && index === archivedIndex) {
             navigate(SCREEN.ARCHIVED_MEDICINES, index);
-            return;
-          }
-          if (index === addIndex) {
-            navigate(SCREEN.ADD_METHOD, index);
             return;
           }
           const medicine = activeMedicines[index];
@@ -1232,7 +1401,7 @@ export default function App() {
 
         return {
           title: t("medicines.title"),
-          count: addIndex + 1,
+          count: itemCount,
           left: t("common.open"),
           right: t("common.back"),
           onEnter: () => activateMedicineMenu(focus),
@@ -1255,11 +1424,6 @@ export default function App() {
                   onClick={() => activateMedicineMenu(archivedIndex)}
                 />
               )}
-              <ListRow
-                label={`${addIndex + 1}  ${t("medicines.add")}`}
-                selected={focus === addIndex}
-                onClick={() => activateMedicineMenu(addIndex)}
-              />
             </div>
           ),
         };
@@ -1489,21 +1653,363 @@ export default function App() {
           ),
         };
 
-      case SCREEN.MEDICINE_CHAT:
+      case SCREEN.MEDICINE_CHAT_MENU: {
+        const openChatSection = (index = focus) => {
+          if (index === 0) {
+            navigate(SCREEN.MEDICINE_CHAT_SEARCH_MENU, index);
+            return;
+          }
+          if (index === 1) {
+            setChatMedicine(null);
+            navigate(SCREEN.MEDICINE_CHAT_CONTEXT, index);
+            return;
+          }
+          setChatMedicine(null);
+          setChatRecognitionText("");
+          navigate(SCREEN.MEDICINE_CHAT_ASSISTANT_MENU, index);
+        };
+
+        const menuItems = [
+          t("chat.searchMedicine"),
+          t("chat.addPackageText"),
+          t("chat.assistant"),
+        ];
+
         return {
           title: t("chat.title"),
+          count: menuItems.length,
+          left: t("common.select"),
+          right: t("common.back"),
+          onEnter: () => openChatSection(),
+          onNumber: (number) => {
+            if (number >= 1 && number <= menuItems.length)
+              openChatSection(number - 1);
+          },
+          content: (
+            <div className="dense-list medicine-chat-menu">
+              {menuItems.map((label, index) => (
+                <ListRow
+                  key={label}
+                  label={`${index + 1}  ${label}`}
+                  selected={focus === index}
+                  onClick={() => openChatSection(index)}
+                />
+              ))}
+            </div>
+          ),
+        };
+      }
+
+      case SCREEN.MEDICINE_CHAT_SEARCH_MENU: {
+        const menuItems = [t("chat.textSearch"), t("chat.selectFromBag")];
+        const openSearchMethod = (index = focus) => {
+          navigate(
+            index === 0
+              ? SCREEN.MEDICINE_CHAT_MEDICINE
+              : SCREEN.MEDICINE_CHAT_BAG,
+            index,
+          );
+        };
+
+        return {
+          title: t("chat.searchTitle"),
+          count: menuItems.length,
+          left: t("common.select"),
+          right: t("common.back"),
+          onEnter: () => openSearchMethod(),
+          onNumber: (number) => {
+            if (number >= 1 && number <= menuItems.length)
+              openSearchMethod(number - 1);
+          },
+          content: (
+            <div className="dense-list medicine-chat-menu">
+              {menuItems.map((label, index) => (
+                <ListRow
+                  key={label}
+                  label={`${index + 1}  ${label}`}
+                  selected={focus === index}
+                  onClick={() => openSearchMethod(index)}
+                />
+              ))}
+            </div>
+          ),
+        };
+      }
+
+      case SCREEN.MEDICINE_CHAT_ASSISTANT_MENU: {
+        const menuItems = [t("chat.history"), t("chat.newChat")];
+        const openAssistantSection = (index = focus) => {
+          navigate(
+            index === 0 ? SCREEN.MEDICINE_CHAT_HISTORY : SCREEN.MEDICINE_CHAT,
+            index,
+          );
+        };
+
+        return {
+          title: t("chat.assistant"),
+          count: menuItems.length,
+          left: t("common.select"),
+          right: t("common.back"),
+          onEnter: () => openAssistantSection(),
+          onNumber: (number) => {
+            if (number >= 1 && number <= menuItems.length)
+              openAssistantSection(number - 1);
+          },
+          content: (
+            <div className="dense-list medicine-chat-menu">
+              {menuItems.map((label, index) => (
+                <ListRow
+                  key={label}
+                  label={`${index + 1}  ${label}`}
+                  selected={focus === index}
+                  onClick={() => openAssistantSection(index)}
+                />
+              ))}
+            </div>
+          ),
+        };
+      }
+
+      case SCREEN.MEDICINE_CHAT_HISTORY:
+        return {
+          title: t("chat.history"),
           count: 0,
           left: null,
           right: t("common.back"),
+          content: <p className="chat-history-empty">{t("chat.historyEmpty")}</p>,
+        };
+
+      case SCREEN.MEDICINE_CHAT_MEDICINE: {
+        const records = chatSearchResult?.records || [];
+        const itemCount = records.length + 1;
+        const activateChatMedicineItem = (index = focus) => {
+          if (index === 0) {
+            if (chatEditingField === "medicine-search") leaveChatInputMode();
+            else enterChatInputMode("medicine-search");
+            return;
+          }
+
+          const record = records[index - 1];
+          if (record) {
+            setChatMedicine(record);
+            navigate(SCREEN.MEDICINE_CHAT_CONTEXT, index);
+          }
+        };
+
+        return {
+          title: t("chat.searchTitle"),
+          count: itemCount,
+          left: focus === 0 ? t("chat.searchAction") : t("common.select"),
+          right: t("common.back"),
+          onLeft: () => {
+            if (focus === 0) searchChatMedicine();
+            else activateChatMedicineItem();
+          },
+          onEnter: () => activateChatMedicineItem(),
+          onInputKey: () => activateChatMedicineItem(),
+          onNumber: (number) => {
+            if (number >= 1 && number <= itemCount) setFocus(number - 1);
+          },
+          content: (
+            <>
+              <form
+                className="manual-form chat-search-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  searchChatMedicine();
+                }}
+              >
+                <FocusableField
+                  id="chat-medicine-search"
+                  label={t("chat.searchLabel")}
+                  value={chatSearchQuery}
+                  placeholder={t("chat.searchPlaceholder")}
+                  selected={focus === 0}
+                  editing={chatEditingField === "medicine-search"}
+                  disabled={chatSearching}
+                  maxLength={200}
+                  onChange={(event) => setChatSearchQuery(event.target.value)}
+                  onSelect={() => setFocus(0)}
+                  onEditingChange={(editing) => {
+                    if (editing) enterChatInputMode("medicine-search");
+                    else if (chatEditingField === "medicine-search")
+                      leaveChatInputMode();
+                  }}
+                />
+              </form>
+              {chatSearching && (
+                <p className="visually-hidden" role="status">
+                  {t("chat.searching")}
+                </p>
+              )}
+              {chatSearchResult && (
+                <p className="visually-hidden" aria-live="polite">
+                  {t("chat.results", { count: chatSearchResult.total })}
+                </p>
+              )}
+              <div className="medicine-list chat-medicine-results">
+                {records.map((record, index) => (
+                  <MedicineRow
+                    key={record.recordId}
+                    medicine={`${index + 2}  ${record.displayName || record.englishName}`}
+                    detail={record.licenseNumber}
+                    selected={focus === index + 1}
+                    checked={chatMedicine?.recordId === record.recordId}
+                    onClick={() => activateChatMedicineItem(index + 1)}
+                  />
+                ))}
+              </div>
+            </>
+          ),
+        };
+      }
+
+      case SCREEN.MEDICINE_CHAT_BAG: {
+        const activateBagMedicine = (index = focus) => {
+          const candidate = chatBagCandidates[index];
+          if (!candidate) return;
+          setChatMedicine({
+            ...candidate.sourceMedicine,
+            displayName: candidate.name,
+            englishName: candidate.name,
+          });
+          navigate(SCREEN.MEDICINE_CHAT_CONTEXT, index);
+        };
+
+        if (!chatBagCandidates.length) {
+          return {
+            title: t("chat.bagTitle"),
+            count: 0,
+            left: null,
+            right: t("common.back"),
+            content: (
+              <p className="chat-history-empty">{t("chat.emptyBag")}</p>
+            ),
+          };
+        }
+
+        return {
+          title: t("chat.bagTitle"),
+          count: chatBagCandidates.length,
+          left: t("common.select"),
+          right: t("common.back"),
+          onEnter: () => activateBagMedicine(),
+          onNumber: (number) => {
+            if (number >= 1 && number <= chatBagCandidates.length)
+              setFocus(number - 1);
+          },
+          onArrowLeft: () =>
+            setFocus((current) =>
+              clamp(current - 1, 0, chatBagCandidates.length - 1),
+            ),
+          onArrowRight: () =>
+            setFocus((current) =>
+              clamp(current + 1, 0, chatBagCandidates.length - 1),
+            ),
+          onArrowUp: () => scrollMatchCard(-1),
+          onArrowDown: () => scrollMatchCard(1),
+          content: (
+            <MedicineMatchDeck
+              candidates={chatBagCandidates}
+              index={focus}
+              onChange={setFocus}
+              onActivate={activateBagMedicine}
+              scrollRef={matchScrollRef}
+              includeManual={false}
+              labels={{
+                primaryEffect: t("matchCard.primaryEffect"),
+                sideEffects: t("matchCard.sideEffects"),
+                indications: t("matchCard.indications"),
+                manualTitle: "",
+                manualHelp: "",
+              }}
+            />
+          ),
+        };
+      }
+
+      case SCREEN.MEDICINE_CHAT_CONTEXT:
+        return {
+          title: t("chat.packageTitle"),
+          count: 1,
+          left: t("chat.next"),
+          right: t("common.back"),
+          onLeft: completeChatSetup,
+          onEnter: () => {
+            if (chatEditingField === "recognition") leaveChatInputMode();
+            else enterChatInputMode("recognition");
+          },
+          onInputKey: () => {
+            if (chatEditingField === "recognition") leaveChatInputMode();
+            else enterChatInputMode("recognition");
+          },
+          content: (
+            <form
+              className="manual-form chat-context-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                completeChatSetup();
+              }}
+            >
+              {chatMedicine && (
+                <p className="chat-selected-medicine">
+                  {t("chat.selectedMedicine", {
+                    name: chatMedicine.displayName || chatMedicine.englishName,
+                  })}
+                </p>
+              )}
+              <FocusableField
+                id="chat-recognition-text"
+                label={t("chat.packageLabel")}
+                value={chatRecognitionText}
+                placeholder={t("chat.packagePlaceholder")}
+                selected
+                editing={chatEditingField === "recognition"}
+                multiline
+                maxLength={6000}
+                onChange={(event) =>
+                  setChatRecognitionText(event.target.value)
+                }
+                onSelect={() => setFocus(0)}
+                onEditingChange={(editing) => {
+                  if (editing) enterChatInputMode("recognition");
+                  else if (chatEditingField === "recognition")
+                    leaveChatInputMode();
+                }}
+              />
+              <p className="helper">{t("chat.packageHelp")}</p>
+            </form>
+          ),
+        };
+
+      case SCREEN.MEDICINE_CHAT:
+        return {
+          title: t("chat.title"),
+          count: 1,
+          left: t("chat.send"),
+          right: t("common.back"),
+          onLeft: () => medicineChatRef.current?.send(),
+          onEnter: () => medicineChatRef.current?.activate(),
+          onInputKey: () => medicineChatRef.current?.activate(),
+          onArrowUp: () => medicineChatRef.current?.scroll(-1),
+          onArrowDown: () => medicineChatRef.current?.scroll(1),
           content: (
             <div className="medicine-chat-screen">
-              <MedicineChat />
+              <MedicineChat
+                ref={medicineChatRef}
+                selectedMedicine={chatMedicine}
+                recognitionText={chatRecognitionText}
+                onSelectMedicine={setChatMedicine}
+              />
             </div>
           ),
         };
 
       case SCREEN.LANGUAGE: {
-        const languages = [{ code: "en-US", label: t("language.enUS") }];
+        const languages = [
+          { code: "zh-TW", label: t("language.zhTW") },
+          { code: "en-US", label: t("language.enUS") },
+        ];
         const selectLanguage = (index) => {
           const language = languages[index];
           if (!language) return;
