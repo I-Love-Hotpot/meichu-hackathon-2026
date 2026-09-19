@@ -2,29 +2,37 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: cloudphone-backend
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "3001"
     environment:
       PORT: 3001
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT:-5432}
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      CLOUDPHONE_BASE_URL: ${CLOUDPHONE_BASE_URL}
-      CLOUDPHONE_WIDGET_URL: ${CLOUDPHONE_WIDGET_URL}
-      CLOUDPHONE_API_KEY: ${CLOUDPHONE_API_KEY:-}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://your-frontend-domain.example.com}
+      DB_HOST: ${DB_HOST:?DB_HOST is required}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER:?DB_USER is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_DATABASE: ${DB_DATABASE:?DB_DATABASE is required}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: cloudphone-frontend
     restart: unless-stopped
     ports:
       - "80"
-    environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://backend:3001}
+    depends_on:
+      backend:
+        condition: service_healthy

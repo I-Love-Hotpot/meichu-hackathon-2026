@@ -1,0 +1,147 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CloudPhone Widget Backend API",
+    "version": "v1.0.0",
+    "description": "API for the backend of the custom CloudPhone widget."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Service status",
+        "operationId": "getServiceStatus",
+        "responses": {
+          "200": {
+            "description": "Service is running",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ServiceStatus" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sms/test": {
+      "post": {
+        "summary": "Send a test SMS",
+        "description": "Temporary endpoint. It is registered only when ENABLE_TEST_SMS_ENDPOINT=true.",
+        "operationId": "sendTestSms",
+        "x-enabled-by": "ENABLE_TEST_SMS_ENDPOINT=true",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TestSmsRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SMS accepted by Twilio",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TestSmsResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid recipient or message",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "502": {
+            "description": "Twilio failed to send the SMS",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "503": {
+            "description": "Twilio is not configured",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ServiceStatus": {
+        "type": "object",
+        "required": ["ok", "message", "service", "timestamp"],
+        "properties": {
+          "ok": { "type": "boolean", "example": true },
+          "message": { "type": "string", "example": "success" },
+          "service": { "type": "string", "example": "cloudphone-backend" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": ["ok", "service", "timestamp"],
+        "properties": {
+          "ok": { "type": "boolean", "example": true },
+          "service": { "type": "string", "example": "cloudphone-backend" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      },
+      "TestSmsRequest": {
+        "type": "object",
+        "required": ["to", "body"],
+        "properties": {
+          "to": { "type": "string", "example": "+886912345678" },
+          "body": { "type": "string", "example": "This is a test SMS" }
+        }
+      },
+      "TestSmsResponse": {
+        "type": "object",
+        "required": ["ok", "sid", "status", "to"],
+        "properties": {
+          "ok": { "type": "boolean", "example": true },
+          "sid": { "type": "string", "example": "SMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" },
+          "status": { "type": "string", "example": "queued" },
+          "to": { "type": "string", "example": "+886912345678" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean", "example": false },
+          "error": { "type": "string" },
+          "path": { "type": "string" }
+        }
+      }
+    }
+  }
+}
