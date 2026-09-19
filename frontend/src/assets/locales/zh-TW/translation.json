@@ -46,7 +46,11 @@
     "manualTitle": "鍵盤輸入",
     "medicineName": "輸入藥品名稱",
     "medicinePlaceholder": "例如：降血壓藥",
+    "directions": "用法（選填）",
+    "directionsPlaceholder": "例如：晚餐後服用",
     "manualHelp": "可使用數字鍵輸入",
+    "manualContinueHelp": "↑ ↓ 選擇欄位，按 OK 進入輸入；確認完成",
+    "manualSaved": "已直接儲存使用者輸入的內容",
     "recognizingTitle": "資訊辨識",
     "recognizing": "正在辨識藥品資訊…",
     "recognizingHelp": "辨識藥名、劑量與用法",
@@ -64,8 +68,15 @@
     "breakfast": "08:00  早餐後",
     "dinner": "20:00  晚餐後",
     "addReminder": "＋ 新增提醒",
+    "reminderHelp": "Enter 切換，完成後儲存所選時間",
+    "otherReminder": "其他時間",
+    "customReminderTitle": "其他時間",
+    "customReminderLabel": "提醒時間",
+    "customReminderHelp": "儲存後加入可選時間",
     "completeTitle": "新增完成",
     "added": "藥品已新增",
+    "remindersSaved": "提醒：{{times}}",
+    "noReminderSaved": "已儲存，不設定提醒",
     "nextReminder": "下一次提醒：今天 20:00"
   },
   "dose": {
@@ -99,8 +110,28 @@
     "title": "我的藥品",
     "detailTitle": "藥品詳情",
     "add": "＋ 新增藥品",
+    "manualEntry": "自行輸入",
+    "noDirections": "未提供",
+    "none": "無",
     "usage": "用法：{{usage}}",
     "reminders": "提醒：{{times}}",
+    "editDirectionsTitle": "修改用法",
+    "directionsLabel": "用法",
+    "directionsPlaceholder": "例如：晚餐後服用",
+    "editDirectionsHelp": "儲存後返回藥品詳情",
+    "editRemindersTitle": "修改提醒",
+    "chooseReminders": "選擇提醒時間",
+    "customReminderHelp": "儲存後加入此藥品的提醒",
+    "invalidReminders": "請使用 24 小時制，例如 08:00, 20:00",
+    "archived": "已封存（{{count}}）",
+    "archivedTitle": "已封存藥品",
+    "archivedStatus": "已封存",
+    "archive": "封存藥品",
+    "unarchive": "取消封存",
+    "delete": "刪除藥品",
+    "deleteTitle": "刪除藥品？",
+    "deleteWarning": "刪除後無法復原",
+    "deleteYes": "刪除",
     "pressure": {
       "name": "降血壓藥",
       "schedule": "每日 2 次",
@@ -121,6 +152,34 @@
     "amlodipine5": "脈優錠 5 毫克",
     "norvasc5": "諾壓錠 5 毫克",
     "amlodipine10": "Amlodipine 10 mg"
+  },
+  "matchCard": {
+    "primaryEffect": "主作用",
+    "sideEffects": "常見副作用",
+    "indications": "適應症",
+    "manualTitle": "自行輸入",
+    "manualHelp": "找不到符合的藥物時使用",
+    "imageAlt": "{{name}} 的藥品示意圖"
+  },
+  "candidateDetails": {
+    "amlodipine5": {
+      "genericName": "氨氯地平 Amlodipine",
+      "primaryEffect": "放鬆血管、降低血壓並減少心臟負擔。",
+      "sideEffects": "腳踝水腫、頭暈、臉潮紅、心悸。",
+      "indications": "高血壓、穩定型心絞痛。"
+    },
+    "norvasc5": {
+      "genericName": "氨氯地平 Amlodipine",
+      "primaryEffect": "阻斷鈣離子進入血管平滑肌，使血管擴張。",
+      "sideEffects": "周邊水腫、疲倦、噁心、腹痛。",
+      "indications": "高血壓、冠狀動脈疾病。"
+    },
+    "amlodipine10": {
+      "genericName": "氨氯地平 Amlodipine",
+      "primaryEffect": "長效控制血壓，改善心肌供氧。",
+      "sideEffects": "水腫、頭痛、嗜睡、心跳加快。",
+      "indications": "高血壓、慢性穩定型心絞痛。"
+    }
   },
   "emergency": {
     "title": "緊急資訊",

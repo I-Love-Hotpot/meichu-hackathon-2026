@@ -50,7 +50,11 @@
     "manualTitle": "Type medicine",
     "medicineName": "Medicine name",
     "medicinePlaceholder": "Example: blood pressure med",
+    "directions": "Directions (optional)",
+    "directionsPlaceholder": "Example: Take after dinner",
     "manualHelp": "Number keys are supported",
+    "manualContinueHelp": "Use ↑ ↓, press OK to type; Confirm finishes",
+    "manualSaved": "Your entry was saved directly",
     "recognizingTitle": "Recognizing",
     "recognizing": "Reading medicine details…",
     "recognizingHelp": "Finding the name, dose, and directions",
@@ -68,8 +72,15 @@
     "breakfast": "08:00  After breakfast",
     "dinner": "20:00  After dinner",
     "addReminder": "＋ Add reminder",
+    "reminderHelp": "Enter toggles; Done saves selected times",
+    "otherReminder": "Other time",
+    "customReminderTitle": "Other time",
+    "customReminderLabel": "Reminder time",
+    "customReminderHelp": "Save adds this time to the choices",
     "completeTitle": "Medicine added",
     "added": "Medicine saved",
+    "remindersSaved": "Reminders: {{times}}",
+    "noReminderSaved": "Saved without reminders",
     "nextReminder": "Next reminder: Today at 20:00"
   },
   "dose": {
@@ -103,8 +114,28 @@
     "title": "My medicines",
     "detailTitle": "Medicine details",
     "add": "＋ Add medicine",
+    "manualEntry": "Manual entry",
+    "noDirections": "Not provided",
+    "none": "None",
     "usage": "Directions: {{usage}}",
     "reminders": "Reminders: {{times}}",
+    "editDirectionsTitle": "Edit directions",
+    "directionsLabel": "Directions",
+    "directionsPlaceholder": "Example: Take after dinner",
+    "editDirectionsHelp": "Save returns to medicine details",
+    "editRemindersTitle": "Edit reminders",
+    "chooseReminders": "Choose reminder times",
+    "customReminderHelp": "Save adds this time to the medicine",
+    "invalidReminders": "Use 24-hour times, for example 08:00, 20:00",
+    "archived": "Archived ({{count}})",
+    "archivedTitle": "Archived medicines",
+    "archivedStatus": "Archived",
+    "archive": "Archive medicine",
+    "unarchive": "Unarchive medicine",
+    "delete": "Delete medicine",
+    "deleteTitle": "Delete medicine?",
+    "deleteWarning": "This cannot be undone",
+    "deleteYes": "Delete",
     "pressure": {
       "name": "Blood pressure med",
       "schedule": "Twice daily",
@@ -125,6 +156,34 @@
     "amlodipine5": "Amlodipine 5 mg",
     "norvasc5": "Norvasc 5 mg",
     "amlodipine10": "Amlodipine 10 mg"
+  },
+  "matchCard": {
+    "primaryEffect": "Main action",
+    "sideEffects": "Common side effects",
+    "indications": "Indications",
+    "manualTitle": "Enter manually",
+    "manualHelp": "Use when no medicine matches",
+    "imageAlt": "Illustration of {{name}}"
+  },
+  "candidateDetails": {
+    "amlodipine5": {
+      "genericName": "Amlodipine",
+      "primaryEffect": "Relaxes blood vessels to lower blood pressure and reduce cardiac workload.",
+      "sideEffects": "Ankle swelling, dizziness, flushing, and palpitations.",
+      "indications": "Hypertension and stable angina."
+    },
+    "norvasc5": {
+      "genericName": "Amlodipine",
+      "primaryEffect": "Blocks calcium entry into vascular muscle, allowing vessels to widen.",
+      "sideEffects": "Peripheral edema, fatigue, nausea, and abdominal pain.",
+      "indications": "Hypertension and coronary artery disease."
+    },
+    "amlodipine10": {
+      "genericName": "Amlodipine",
+      "primaryEffect": "Provides long-acting blood pressure control and improves cardiac oxygen supply.",
+      "sideEffects": "Edema, headache, drowsiness, and rapid heartbeat.",
+      "indications": "Hypertension and chronic stable angina."
+    }
   },
   "emergency": {
     "title": "Emergency info",

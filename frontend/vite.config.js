@@ -1,15 +1,19 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import svgr from 'vite-plugin-svgr'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import svgr from "vite-plugin-svgr";
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './', // Needed for GitHub pages
+  base: "./", // Needed for GitHub pages
   build: {
     assetsInlineLimit: 8192,
   },
-  plugins: [svgr(), react()],
   server: {
-    proxy: { '/api': 'http://localhost:3001' },
+    host: true,
+    port: 5173,
+    watch: {
+      usePolling: true,
+    },
   },
-})
+  plugins: [svgr(), react()],
+});

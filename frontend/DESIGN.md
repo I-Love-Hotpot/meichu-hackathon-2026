@@ -44,7 +44,7 @@ Typography uses `Noto Sans TC`, then platform Chinese sans-serif fallbacks. QVGA
 - Quantity controls accept direct numeric entry. Press `*` for the decimal point, so `1`, `*`, `5` enters `1.5` pills.
 - Pointer clicks are supported for desktop development, but all primary flows work from the keypad.
 
-The physical right soft key is not handled as a keyboard event. Every internal screen transition creates a native browser history entry with `history.pushState()`. RSK therefore invokes the platform's normal back action and the app restores the previous screen from `popstate`; only the root entry may be closed by the platform. The rendered right soft-key button calls the same `history.back()` path for desktop testing.
+The physical right soft key is not handled as a keyboard event. Every internal screen transition creates a native browser history entry with `history.pushState()`. RSK therefore invokes the platform's normal back action and the app restores the previous screen from `popstate`; only the root entry may be closed by the platform. Completed flows collapse their intermediate history before showing feedback, so RSK returns to Home instead of reopening the completed flow. The rendered right soft-key button calls the same `history.back()` path for desktop testing.
 
 Destructive and emergency information uses both text and color; color is never the only cue.
 
@@ -52,13 +52,26 @@ Destructive and emergency information uses both text and color; color is never t
 
 1. Home → record today → toggle doses → completion feedback.
 2. Home → history → daily detail → update record → quantity.
-3. Home → medicines → medicine detail.
-4. Medicines → add medicine → photo/file or keyboard input → recognition → possible medicine matches → daily-use decision → reminder → completion.
-5. Home → emergency information.
-6. Home `9` → reminder alert demo → record or postpone.
-7. Home `5` → switch between Traditional Chinese (`zh-TW`) and US English (`en-US`).
+3. Home → medicines → medicine detail → edit directions/reminders, archive/unarchive, or delete.
+4. Medicines → add medicine → photo/file → recognition → possible medicine matches. Selecting a result continues through daily-use and reminders; selecting the final manual card stores its name and optional directions directly.
+5. Medicines → add medicine → manual name and optional directions → recognition/query → possible medicine matches.
+6. Home → emergency information.
+7. Home `9` → reminder alert demo → record or postpone.
+8. Home `5` → switch between Traditional Chinese (`zh-TW`) and US English (`en-US`).
 
 All current data is fixture data in `src/data/fixtures.js`. Today’s completion toggles persist in `localStorage` under `medaboutyou-today-doses`.
+
+User-entered medicines persist a submitted `name`, optional `directions`, reminder times, and archive state under `medaboutyou-user-medicines`. Existing `customDescription` records are migrated to `customDirections` on load. User-entered values are displayed as data and are not translated.
+
+Directions and reminders are editable from every medicine detail screen. Reminder choices are the sorted union of times used by all active medicines, followed by an `n + 1` Other time action backed by a native time input. Updates to fixture medicines persist as user overrides under `medaboutyou-medicine-settings`; updates to manually entered medicines are written back to their existing `medaboutyou-user-medicines` record. Saving either field returns to medicine details and never enters the dose-history flow. Archived medicines move to a separate list and can be restored; deleting requires confirmation.
+
+### Possible medicine cards
+
+Search results use an `n + 1` horizontal card deck. The first `n` cards come from the medicine-search API; the current mock contains three results. `ArrowLeft` and `ArrowRight` flip between cards, and the partial cards at either side plus the page dots communicate position without adding multiple borders.
+
+Each result card begins with a medicine image, followed by the generic name, primary action, common side effects, and indications. `ArrowUp` and `ArrowDown` scroll within the active card. A subtle bottom fade is rendered only while more content remains below. The final card uses a circular `+` action and opens manual medicine entry.
+
+The current mock images are local neutral SVG illustrations. API results should provide an image URL or asset identifier and retain useful localized alt text.
 
 ## Localization
 
