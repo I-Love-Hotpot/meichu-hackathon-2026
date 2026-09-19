@@ -1,6 +1,6 @@
 # MedAboutYou frontend design specification
 
-This frontend implements the MedAboutYou Figma design as a keyboard-first React app for a 240 × 320 Cloud Phone.
+This frontend implements the MedAboutYou Figma design as a keyboard-first React app for both QVGA and QQVGA Cloud Phones.
 
 - Figma: [MedAboutYou — CloudPhone UI](https://www.figma.com/design/pMbjR2mH40HY4Xso6V2pzj/MedAboutYou-%25E2%2580%2594-CloudPhone-UI)
 - UI guidelines: <https://www.cloudphone.tech/uiux-guidelines>
@@ -10,13 +10,13 @@ This frontend implements the MedAboutYou Figma design as a keyboard-first React 
 
 Every screen uses the same fixed layout so focus and soft-key positions never jump:
 
-| Region | Height | Purpose |
-| --- | ---: | --- |
-| App header | 40 px | One centered page title, optional date/time |
-| Content | 240 px | One primary task and one visible focus target |
-| Soft-key bar | 40 px | Contextual LSK, center confirm, consistent RSK |
+| Region | QVGA 240×320 | QQVGA 128×160 | Purpose |
+| --- | ---: | ---: | --- |
+| App header | 40 px | 26 px | One centered page title, optional date/time |
+| Content | 240 px | 106 px | One primary task and one visible focus target |
+| Soft-key bar | 40 px | 28 px | Contextual LSK, center confirm, consistent RSK |
 
-The page is exactly 240 × 320 px. The browser preview centers this surface without scaling; the target device fills its viewport exactly.
+The app uses native CSS layout at both 240 × 320 and 128 × 160; it does not scale a QVGA screenshot down. QQVGA uses smaller type, two-pixel focus borders, compact rows, and hides secondary helper copy while preserving the active task and all keypad actions.
 
 ## Visual tokens
 
@@ -31,7 +31,7 @@ The page is exactly 240 × 320 px. The browser preview centers this surface with
 | Danger | `#B6382E` | Emergency and allergy information |
 | Success | `#2B7653` | Completed state |
 
-Typography uses `Noto Sans TC`, then platform Chinese sans-serif fallbacks. Titles are 24 px and bold; controls are 15–18 px. The UI is flat, high contrast, and does not depend on shadows or hover states.
+Typography uses `Noto Sans TC`, then platform Chinese sans-serif fallbacks. QVGA titles are 24 px with 15–18 px controls; QQVGA titles are 14 px with 8–13 px controls. The UI is flat, high contrast, and does not depend on shadows or hover states.
 
 ## Interaction model
 

@@ -419,3 +419,236 @@
 @media (prefers-reduced-motion: reduce) {
   .progress span { animation: none; }
 }
+
+@media (max-width: 128px), (max-height: 160px) {
+  .device-shell {
+    width: 128px;
+    height: 160px;
+    grid-template-rows: 26px 106px 28px;
+  }
+
+  .app-header {
+    height: 26px;
+    padding: 0 4px;
+    grid-template-columns: 22px minmax(0, 1fr) 22px;
+  }
+
+  .app-header h1 {
+    width: 100%;
+    max-width: none;
+    font-size: 14px;
+    line-height: 18px;
+  }
+
+  .header-meta {
+    overflow: hidden;
+    font-size: 7px;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+
+  .screen-content {
+    height: 106px;
+    padding: 4px;
+    gap: 3px;
+  }
+
+  .list-row,
+  .medicine-row,
+  .decision button,
+  .quantity-picker {
+    border-radius: 4px;
+  }
+
+  .list-row,
+  .medicine-row {
+    min-height: 25px;
+    padding: 2px 4px;
+  }
+
+  .list-row {
+    font-size: 11px;
+    line-height: 13px;
+  }
+
+  .dense-list,
+  .medicine-list {
+    gap: 2px;
+  }
+
+  .dense-list .list-row {
+    min-height: 17px;
+    padding: 1px 3px;
+    font-size: 10px;
+    line-height: 11px;
+  }
+
+  .medicine-list .medicine-row,
+  .medicine-list .list-row,
+  .medicine-row {
+    min-height: 23px;
+  }
+
+  .medicine-list .medicine-row,
+  .medicine-list .list-row {
+    height: 19px;
+    min-height: 19px;
+    padding: 1px 3px;
+  }
+
+  .medicine-list .medicine-copy small {
+    display: none;
+  }
+
+  .medicine-list .list-row {
+    font-size: 10px;
+    line-height: 11px;
+  }
+
+  .is-selected,
+  .list-row.is-selected,
+  .medicine-row.is-selected,
+  .decision button.is-selected,
+  .quantity-picker.is-selected {
+    border-width: 2px;
+  }
+
+  .medicine-row {
+    gap: 3px;
+    padding: 1px 3px;
+  }
+
+  .checkmark {
+    width: 12px;
+    flex-basis: 12px;
+    font-size: 11px;
+  }
+
+  .medicine-copy strong {
+    font-size: 10px;
+    line-height: 12px;
+  }
+
+  .medicine-copy small {
+    font-size: 8px;
+    line-height: 9px;
+  }
+
+  .prompt {
+    font-size: 12px;
+    line-height: 14px;
+  }
+
+  .helper {
+    display: none;
+  }
+
+  .decision {
+    gap: 4px;
+  }
+
+  .decision button {
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .quantity-picker {
+    height: 40px;
+    padding: 3px 5px;
+  }
+
+  .quantity-picker button {
+    width: 24px;
+    height: 24px;
+    font-size: 18px;
+  }
+
+  .quantity-picker strong {
+    font-size: 14px;
+  }
+
+  .feedback-card {
+    min-height: 70px;
+    padding: 4px;
+    gap: 2px;
+    border-radius: 6px;
+  }
+
+  .feedback-card--danger {
+    min-height: 60px;
+  }
+
+  .feedback-mark {
+    font-size: 20px;
+    line-height: 20px;
+  }
+
+  .feedback-card strong {
+    font-size: 12px;
+    line-height: 14px;
+  }
+
+  .feedback-card span:not(.feedback-mark) {
+    font-size: 9px;
+    line-height: 11px;
+  }
+
+  .processing {
+    gap: 6px;
+  }
+
+  .progress {
+    height: 8px;
+    border-radius: 4px;
+  }
+
+  .manual-form {
+    gap: 4px;
+  }
+
+  .manual-form label {
+    font-size: 12px;
+    line-height: 14px;
+  }
+
+  .manual-form input {
+    height: 32px;
+    padding: 4px 6px;
+    border-width: 2px;
+    border-radius: 4px;
+    font-size: 11px;
+  }
+
+  .emergency-line {
+    padding: 3px 4px;
+    border-left-width: 3px;
+    font-size: 10px;
+    line-height: 13px;
+  }
+
+  .softkey-bar {
+    height: 28px;
+    grid-template-columns: 1fr 28px 1fr;
+  }
+
+  .softkey-bar button {
+    padding: 0 4px;
+    gap: 2px;
+    overflow: hidden;
+    font-size: 10px;
+    line-height: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .softkey-bar button span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .softkey-bar svg {
+    width: 11px;
+    height: 11px;
+    flex-basis: 11px;
+  }
+}

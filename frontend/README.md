@@ -1,6 +1,6 @@
 # MedAboutYou frontend
 
-React implementation of the MedAboutYou 240 × 320 keyboard-phone design.
+Responsive React implementation of the MedAboutYou keyboard-phone design for QVGA (240 × 320) and QQVGA (128 × 160).
 
 ## Run locally
 
