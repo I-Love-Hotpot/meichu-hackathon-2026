@@ -14,21 +14,49 @@
     "record": "Record",
     "now": "Now",
     "mainMenu": "Home",
-    "medicines": "Medicines",
+    "medicines": "Medicine bag",
     "noLeftAction": "No left soft-key action",
     "noRightAction": "No right soft-key action"
   },
   "home": {
     "title": "Main menu",
+    "medicineRecognition": "Medicine recognition",
+    "recordMedicine": "Medication log",
     "recordToday": "Record today's doses",
     "history": "Dose history",
-    "myMedicines": "My medicines",
+    "myMedicines": "My medicine bag",
     "emergency": "Emergency info",
     "language": "Language",
-    "medicineQuestions": "Medicine Q&A"
+    "medicineQuestions": "Medicine Assistant"
   },
   "chat": {
-    "title": "Medicine Q&A"
+    "title": "Medicine Assistant",
+    "searchTitle": "Search medicine",
+    "searchMedicine": "Search medicine",
+    "textSearch": "Text search",
+    "selectFromBag": "Select from my medicine bag",
+    "bagTitle": "Select from my medicine bag",
+    "emptyBag": "There are no medicines in your medicine bag.",
+    "addPackageText": "Add package or label text",
+    "assistant": "Medicine Assistant",
+    "history": "History",
+    "newChat": "New Chat",
+    "historyEmpty": "No conversation history yet.",
+    "send": "Send",
+    "searchLabel": "Medicine name or license ID",
+    "searchPlaceholder": "Example: ASPIRIN",
+    "searchAction": "Search",
+    "searching": "Searching medicine data…",
+    "results": "{{count}} result(s) found",
+    "next": "Next",
+    "packageTitle": "Package text",
+    "selectedMedicine": "Medicine: {{name}}",
+    "packageLabel": "Package or label text (optional)",
+    "packagePlaceholder": "Paste recognized label text",
+    "packageHelp": "Leave blank to continue. This is used only for the current chat and is not saved.",
+    "strength": "Strength",
+    "directions": "Directions",
+    "reminders": "Reminders"
   },
   "language": {
     "title": "Language",
@@ -38,7 +66,7 @@
     "current": "Current: {{language}}"
   },
   "add": {
-    "title": "Add medicine",
+    "title": "Medicine recognition",
     "chooseMethod": "Choose how to add it",
     "photo": "Take or choose photo",
     "keyboard": "Type medicine name",
@@ -111,7 +139,7 @@
     "dayLabel": "{{date}}  {{relative}} · {{done}}/{{total}}"
   },
   "medicines": {
-    "title": "My medicines",
+    "title": "My medicine bag",
     "detailTitle": "Medicine details",
     "add": "＋ Add medicine",
     "manualEntry": "Manual entry",

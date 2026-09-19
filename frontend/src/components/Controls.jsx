@@ -24,6 +24,11 @@ export function FocusableField({
   editing = false,
   multiline = false,
   required = false,
+  disabled = false,
+  maxLength,
+  rows,
+  focusId,
+  className = '',
   onSelect,
   onEditingChange,
   onChange,
@@ -56,7 +61,7 @@ export function FocusableField({
 
   return (
     <div
-      className={`focusable-field${selected ? ' is-selected' : ''}${editing ? ' is-editing' : ''}`}
+      className={`focusable-field${className ? ` ${className}` : ''}${selected ? ' is-selected' : ''}${editing ? ' is-editing' : ''}`}
       aria-current={selected ? 'true' : undefined}
     >
       <label htmlFor={id}>{label}</label>
@@ -67,6 +72,10 @@ export function FocusableField({
         placeholder={placeholder}
         readOnly={!editing}
         required={required}
+        disabled={disabled}
+        maxLength={maxLength}
+        rows={multiline ? rows : undefined}
+        data-chat-focus={focusId || undefined}
         tabIndex={editing ? 0 : -1}
         onChange={onChange}
         onClick={enterInputMode}

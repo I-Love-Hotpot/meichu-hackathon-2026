@@ -2,22 +2,26 @@
   max-width: 760px;
   height: 100%;
   margin: 0 auto;
-  padding: 12px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
   color: #edf5f7;
   background: #101c25;
   font-size: 16px;
 }
-.medicine-chat h2 { font-size: 1.2em; }
 .medicine-chat p { margin: 6px 0 0; font-size: 1em; line-height: 1.5; }
-.chat-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.chat-heading p { color: #b4c8d2; font-size: .85em; }
 .medicine-chat button, .medicine-chat textarea { font: inherit; border-radius: 8px; }
 .medicine-chat button { padding: 8px 12px; border: 1px solid #5a8993; background: #164c53; color: white; cursor: pointer; }
 .medicine-chat button:disabled { opacity: .5; cursor: default; }
 .medicine-chat :focus-visible { outline: 2px solid #94e9ce; outline-offset: 2px; }
+.medicine-chat:focus { outline: none; }
+.medicine-chat [data-chat-focus].is-selected,
+.medicine-chat summary.is-selected,
+.medicine-chat a.is-selected {
+  outline: 2px solid #94e9ce;
+  outline-offset: 2px;
+}
 .recognition-input { border: 1px solid #405763; border-radius: 8px; padding: 8px; flex-shrink: 0; max-height: 35%; overflow-y: auto; }
 .recognition-input summary { cursor: pointer; }
 .recognition-input label { display: block; margin: 8px 0 4px; }
@@ -36,32 +40,39 @@
 .source-record dt { color: #b4c8d2; }
 .source-record dd { margin: 0 0 6px; white-space: pre-wrap; }
 .source-record button { display: block; margin-top: 8px; }
-.chat-messages { flex: 1; min-height: 64px; overflow-y: auto; padding: 4px; }
+.chat-messages { flex: 1; min-height: 64px; overflow-y: auto; padding: 0 0 4px; }
+.chat-assistant-header {
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  color: #edf5f7;
+  background: #223543;
+  overflow-wrap: anywhere;
+}
+.chat-assistant-header strong { font-size: .85em; color: #bde7df; }
+.chat-assistant-header p { white-space: pre-wrap; }
 .chat-bubble { width: fit-content; max-width: 92%; border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; overflow-wrap: anywhere; }
-.chat-bubble.assistant { background: #223543; }
-.chat-bubble.user { margin-left: auto; background: #175550; }
+.chat-bubble.assistant { margin-left: 12px; background: #223543; }
+.chat-bubble.user { margin-left: auto; margin-right: 12px; background: #175550; }
 .chat-bubble strong { font-size: .85em; color: #bde7df; }
 .chat-bubble p { white-space: pre-wrap; }
 .chat-bubble ul { margin: 5px 0 0; padding-left: 20px; line-height: 1.5; }
 .chat-warnings, .chat-followups { margin-top: 10px; }
 .chat-warnings strong { color: #f9d898; }
-.medicine-chat .chat-error { background: #522e34; color: #ffe0e4; border-radius: 8px; padding: 10px; }
-.chat-form { flex-shrink: 0; }
+.medicine-chat .chat-error { margin-right: 12px; margin-left: 12px; background: #522e34; color: #ffe0e4; border-radius: 8px; padding: 10px; }
+.chat-form { flex-shrink: 0; margin: 0 12px 10px; }
 .chat-form label { display: block; margin-bottom: 5px; }
-.chat-compose { display: flex; gap: 8px; align-items: stretch; }
-.chat-compose textarea { flex: 1; max-height: 120px; }
-.chat-compose button { flex-shrink: 0; }
-.medicine-chat .chat-disclaimer, .medicine-chat .chat-privacy { font-size: .75em; color: #b4c8d2; margin: 0; }
+.chat-focusable-field { flex: 1; min-width: 0; }
+.chat-focusable-field label { font-weight: 700; }
+.medicine-chat .chat-disclaimer, .medicine-chat .chat-privacy { font-size: .75em; color: #b4c8d2; margin: 0 12px; }
 @media (max-width: 240px) {
-  .medicine-chat { padding: 6px; gap: 6px; font-size: 13px; }
-  .chat-heading p { display: none; }
+  .medicine-chat { padding: 0; gap: 0; font-size: 13px; }
   .medicine-chat button { padding: 5px; }
   .chat-bubble { max-width: 97%; padding: 8px; }
-  .chat-compose { gap: 4px; }
 }
 @media (max-height: 450px) {
   .medicine-chat { display: block; height: auto; min-height: 100%; }
-  .chat-heading, .recognition-input, .chat-form { margin-bottom: 8px; }
+  .recognition-input, .chat-form { margin-bottom: 8px; }
   .chat-messages { height: 180px; }
   .recognition-input { max-height: 140px; }
 }
@@ -78,16 +89,14 @@
   display: flex;
   min-height: 100%;
   height: auto;
-  padding: 6px;
+  padding: 0;
   color: var(--ink);
   background: var(--screen);
   font-size: 13px;
 }
 
-.medicine-chat-screen .chat-heading { display: none; }
 .medicine-chat-screen .recognition-input { max-height: none; border-color: var(--divider); }
 .medicine-chat-screen .recognition-input p,
-.medicine-chat-screen .chat-heading p,
 .medicine-chat-screen .source-record dt,
 .medicine-chat-screen .chat-disclaimer,
 .medicine-chat-screen .chat-privacy { color: var(--secondary); }
@@ -103,7 +112,92 @@
   color: var(--ink);
   background: var(--focus);
 }
+.medicine-chat-screen .medicine-chat [data-chat-focus].is-selected,
+.medicine-chat-screen .medicine-chat summary.is-selected,
+.medicine-chat-screen .medicine-chat a.is-selected {
+  color: var(--ink);
+  background: var(--focus);
+  outline-color: var(--focus-stroke);
+}
 .medicine-chat-screen .chat-messages { flex: none; min-height: 120px; overflow: visible; }
+.medicine-chat-screen .chat-assistant-header {
+  margin-bottom: 6px;
+  padding: 6px;
+  color: var(--ink);
+  background: var(--header);
+}
+.medicine-chat-screen .chat-assistant-header strong { color: var(--ink); }
+.medicine-chat-screen .chat-bubble.assistant { margin-left: 6px; }
+.medicine-chat-screen .chat-bubble.user { margin-right: 6px; }
+.medicine-chat-screen .chat-form { margin: 0 6px 6px; }
+.medicine-chat-screen .chat-error,
+.medicine-chat-screen .chat-disclaimer,
+.medicine-chat-screen .chat-privacy { margin-right: 6px; margin-left: 6px; }
 .medicine-chat-screen .chat-bubble.assistant { background: var(--header); }
 .medicine-chat-screen .chat-bubble.user { background: var(--focus); }
 .medicine-chat-screen .chat-bubble strong { color: var(--ink); }
+
+@media (max-width: 128px), (max-height: 160px) {
+  .medicine-chat-screen {
+    height: 106px;
+    margin: -4px;
+  }
+
+  .medicine-chat-screen .medicine-chat {
+    padding: 0;
+    gap: 0;
+    font-size: 9px;
+  }
+
+  .medicine-chat-screen .recognition-input {
+    padding: 3px;
+    border-radius: 4px;
+  }
+
+  .medicine-chat-screen .medicine-chat button {
+    padding: 3px;
+    border-radius: 3px;
+  }
+
+  .medicine-chat-screen .chat-focusable-field {
+    padding: 1px;
+    gap: 1px;
+    border-width: 1px;
+    border-radius: 4px;
+  }
+
+  .medicine-chat-screen .chat-focusable-field label {
+    margin: 0;
+    font-size: 9px;
+    line-height: 10px;
+  }
+
+  .medicine-chat-screen .medicine-chat input,
+  .medicine-chat-screen .medicine-chat textarea {
+    padding: 3px;
+    border-radius: 3px;
+    font-size: 9px;
+  }
+
+  .medicine-chat-screen .chat-messages {
+    min-height: 52px;
+  }
+
+  .medicine-chat-screen .chat-assistant-header {
+    margin-bottom: 3px;
+    padding: 3px;
+  }
+
+  .medicine-chat-screen .chat-bubble.assistant { margin-left: 2px; }
+  .medicine-chat-screen .chat-bubble.user { margin-right: 2px; }
+  .medicine-chat-screen .chat-form { margin: 0 2px 3px; }
+  .medicine-chat-screen .chat-error,
+  .medicine-chat-screen .chat-disclaimer,
+  .medicine-chat-screen .chat-privacy { margin-right: 2px; margin-left: 2px; }
+
+  .medicine-chat-screen .chat-bubble {
+    padding: 4px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+  }
+}
