@@ -60,6 +60,14 @@ Destructive and emergency information uses both text and color; color is never t
 
 All current data is fixture data in `src/data/fixtures.js`. Today’s completion toggles persist in `localStorage` under `medaboutyou-today-doses`.
 
+### Possible medicine cards
+
+Search results use an `n + 1` horizontal card deck. The first `n` cards come from the medicine-search API; the current mock contains three results. `ArrowLeft` and `ArrowRight` flip between cards, and the partial cards at either side plus the page dots communicate position without adding multiple borders.
+
+Each result card begins with a medicine image, followed by the generic name, primary action, common side effects, and indications. `ArrowUp` and `ArrowDown` scroll within the active card. A subtle bottom fade is rendered only while more content remains below. The final card uses a circular `+` action and opens manual medicine entry.
+
+The current mock images are local neutral SVG illustrations. API results should provide an image URL or asset identifier and retain useful localized alt text.
+
 ## Localization
 
 The app uses the template's existing i18next, react-i18next, and browser-language-detector dependencies. Resources live under `src/assets/locales/zh-TW` and `src/assets/locales/en-US`. Detection checks the saved `medaboutyou-language` preference first and then the browser locale. Traditional Chinese is the fallback.

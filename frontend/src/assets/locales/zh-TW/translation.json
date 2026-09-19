@@ -122,6 +122,34 @@
     "norvasc5": "諾壓錠 5 毫克",
     "amlodipine10": "Amlodipine 10 mg"
   },
+  "matchCard": {
+    "primaryEffect": "主作用",
+    "sideEffects": "常見副作用",
+    "indications": "適應症",
+    "manualTitle": "自行輸入",
+    "manualHelp": "找不到符合的藥物時使用",
+    "imageAlt": "{{name}} 的藥品示意圖"
+  },
+  "candidateDetails": {
+    "amlodipine5": {
+      "genericName": "氨氯地平 Amlodipine",
+      "primaryEffect": "放鬆血管、降低血壓並減少心臟負擔。",
+      "sideEffects": "腳踝水腫、頭暈、臉潮紅、心悸。",
+      "indications": "高血壓、穩定型心絞痛。"
+    },
+    "norvasc5": {
+      "genericName": "氨氯地平 Amlodipine",
+      "primaryEffect": "阻斷鈣離子進入血管平滑肌，使血管擴張。",
+      "sideEffects": "周邊水腫、疲倦、噁心、腹痛。",
+      "indications": "高血壓、冠狀動脈疾病。"
+    },
+    "amlodipine10": {
+      "genericName": "氨氯地平 Amlodipine",
+      "primaryEffect": "長效控制血壓，改善心肌供氧。",
+      "sideEffects": "水腫、頭痛、嗜睡、心跳加快。",
+      "indications": "高血壓、慢性穩定型心絞痛。"
+    }
+  },
   "emergency": {
     "title": "緊急資訊",
     "help": "求助說明",

@@ -122,6 +122,34 @@
     "norvasc5": "Norvasc 5 mg",
     "amlodipine10": "Amlodipine 10 mg"
   },
+  "matchCard": {
+    "primaryEffect": "Main action",
+    "sideEffects": "Common side effects",
+    "indications": "Indications",
+    "manualTitle": "Enter manually",
+    "manualHelp": "Use when no medicine matches",
+    "imageAlt": "Illustration of {{name}}"
+  },
+  "candidateDetails": {
+    "amlodipine5": {
+      "genericName": "Amlodipine",
+      "primaryEffect": "Relaxes blood vessels to lower blood pressure and reduce cardiac workload.",
+      "sideEffects": "Ankle swelling, dizziness, flushing, and palpitations.",
+      "indications": "Hypertension and stable angina."
+    },
+    "norvasc5": {
+      "genericName": "Amlodipine",
+      "primaryEffect": "Blocks calcium entry into vascular muscle, allowing vessels to widen.",
+      "sideEffects": "Peripheral edema, fatigue, nausea, and abdominal pain.",
+      "indications": "Hypertension and coronary artery disease."
+    },
+    "amlodipine10": {
+      "genericName": "Amlodipine",
+      "primaryEffect": "Provides long-acting blood pressure control and improves cardiac oxygen supply.",
+      "sideEffects": "Edema, headache, drowsiness, and rapid heartbeat.",
+      "indications": "Hypertension and chronic stable angina."
+    }
+  },
   "emergency": {
     "title": "Emergency info",
     "help": "Help",

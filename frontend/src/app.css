@@ -359,6 +359,191 @@
   line-height: 22px;
 }
 
+.match-deck {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 16px;
+  gap: 4px;
+}
+
+.match-deck-stage {
+  min-height: 0;
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.match-card {
+  width: calc(100% - 36px);
+  height: 100%;
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: 10px;
+  color: var(--ink);
+  background: white;
+  box-shadow: inset 0 0 0 2px var(--focus-stroke);
+  cursor: pointer;
+}
+
+.match-card-peek {
+  width: 24px;
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  z-index: 1;
+  border-radius: 8px;
+  background: #dce9e5;
+}
+
+.match-card-peek--left {
+  left: 0;
+}
+
+.match-card-peek--right {
+  right: 0;
+}
+
+.match-card-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.match-card-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.match-card-scroll img {
+  width: 100%;
+  height: 88px;
+  display: block;
+  object-fit: cover;
+}
+
+.match-card-copy {
+  padding: 7px 10px 22px;
+}
+
+.match-card-position {
+  color: var(--secondary);
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.match-card-copy h2 {
+  margin: 1px 0 6px;
+  font-size: 17px;
+  line-height: 22px;
+}
+
+.match-card-copy dl {
+  margin: 0;
+}
+
+.match-card-copy dt {
+  margin-top: 7px;
+  color: var(--focus-stroke);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 16px;
+}
+
+.match-card-copy dd {
+  margin: 1px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.match-scroll-hint {
+  height: 24px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  background: linear-gradient(to bottom, transparent, rgb(255 255 255 / 95%));
+  pointer-events: none;
+}
+
+.match-card--manual {
+  display: grid;
+  place-items: center;
+  background: var(--header);
+}
+
+.match-manual-content {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.match-plus {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--focus-stroke);
+  background: var(--focus);
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 42px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.match-manual-content strong {
+  font-size: 18px;
+  line-height: 22px;
+}
+
+.match-manual-content small {
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.match-deck-footer {
+  height: 16px;
+  display: grid;
+  grid-template-columns: 20px 1fr 20px;
+  align-items: center;
+  color: var(--secondary);
+  font-size: 16px;
+  line-height: 16px;
+  text-align: center;
+  overflow: hidden;
+}
+
+.match-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.match-dots button {
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  display: block;
+  border: 0;
+  border-radius: 3px;
+  background: var(--divider);
+}
+
+.match-dots button.is-active {
+  width: 16px;
+  background: var(--focus-stroke);
+}
+
 .softkey-bar {
   height: 40px;
   display: grid;
@@ -624,6 +809,101 @@
     border-left-width: 3px;
     font-size: 10px;
     line-height: 13px;
+  }
+
+  .match-deck {
+    grid-template-rows: minmax(0, 1fr) 8px;
+    gap: 2px;
+  }
+
+  .match-card {
+    width: calc(100% - 16px);
+    border-radius: 5px;
+    box-shadow: inset 0 0 0 1.5px var(--focus-stroke);
+  }
+
+  .match-card-peek {
+    width: 10px;
+    top: 4px;
+    bottom: 4px;
+    border-radius: 4px;
+  }
+
+  .match-card-scroll img {
+    height: 42px;
+  }
+
+  .match-card-copy {
+    padding: 3px 5px 12px;
+  }
+
+  .match-card-position {
+    font-size: 7px;
+    line-height: 8px;
+  }
+
+  .match-card-copy h2 {
+    margin: 0 0 3px;
+    font-size: 10px;
+    line-height: 12px;
+  }
+
+  .match-card-copy dt {
+    margin-top: 3px;
+    font-size: 8px;
+    line-height: 9px;
+  }
+
+  .match-card-copy dd {
+    margin-top: 0;
+    font-size: 8px;
+    line-height: 10px;
+  }
+
+  .match-scroll-hint {
+    height: 14px;
+  }
+
+  .match-manual-content {
+    padding: 4px;
+    gap: 3px;
+  }
+
+  .match-plus {
+    width: 32px;
+    height: 32px;
+    font-size: 24px;
+  }
+
+  .match-manual-content strong {
+    font-size: 11px;
+    line-height: 13px;
+  }
+
+  .match-manual-content small {
+    font-size: 8px;
+    line-height: 9px;
+  }
+
+  .match-deck-footer {
+    height: 8px;
+    grid-template-columns: 12px 1fr 12px;
+    font-size: 10px;
+    line-height: 8px;
+  }
+
+  .match-dots {
+    gap: 3px;
+  }
+
+  .match-dots button {
+    width: 4px;
+    height: 4px;
+    border-radius: 2px;
+  }
+
+  .match-dots button.is-active {
+    width: 10px;
   }
 
   .softkey-bar {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import DeviceShell from './components/DeviceShell.jsx'
+import MedicineMatchDeck from './components/MedicineMatchDeck.jsx'
 import {
   Decision,
   FeedbackCard,
@@ -76,6 +77,7 @@ export default function App() {
   const [doses, setDoses] = useStoredDoses()
   const fileInputRef = useRef(null)
   const shellRef = useRef(null)
+  const matchScrollRef = useRef(null)
   const quantityBufferRef = useRef('')
   const quantityTimerRef = useRef(null)
 
@@ -93,6 +95,18 @@ export default function App() {
     decreaseLabel: t('dose.decrease'),
     increaseLabel: t('dose.increase'),
   }
+  const localizedCandidates = medicineCandidates.map((candidate) => {
+    const name = t(`candidates.${candidate.id}`)
+    return {
+      ...candidate,
+      name,
+      genericName: t(`candidateDetails.${candidate.id}.genericName`),
+      primaryEffect: t(`candidateDetails.${candidate.id}.primaryEffect`),
+      sideEffects: t(`candidateDetails.${candidate.id}.sideEffects`),
+      indications: t(`candidateDetails.${candidate.id}.indications`),
+      imageAlt: t('matchCard.imageAlt', { name }),
+    }
+  })
 
   const navigate = (next) => {
     window.history.pushState({ [HISTORY_KEY]: true, screen: next }, '')
@@ -178,6 +192,13 @@ export default function App() {
     quantityTimerRef.current = window.setTimeout(() => {
       quantityBufferRef.current = ''
     }, 1200)
+  }
+
+  const scrollMatchCard = (direction) => {
+    const element = matchScrollRef.current
+    if (!element) return
+    const distance = Math.max(36, Math.round(element.clientHeight * 0.65))
+    element.scrollBy({ top: direction * distance, behavior: 'smooth' })
   }
 
   const toggleDose = (index) => {
@@ -298,36 +319,45 @@ export default function App() {
           </div>,
         }
 
-      case SCREEN.MATCHES:
-        return {
-          title: t('add.matchesTitle'), count: medicineCandidates.length,
-          left: t('common.confirm'), right: t('common.back'),
-          onEnter: () => {
-            setSelectedCandidate(medicineCandidates[focus])
-            navigate(SCREEN.DAILY)
-          },
-          onNumber: (number) => {
-            const candidate = medicineCandidates[number - 1]
-            if (!candidate) return
+      case SCREEN.MATCHES: {
+        const activateMatch = () => {
+          const candidate = medicineCandidates[focus]
+          if (candidate) {
             setSelectedCandidate(candidate)
             navigate(SCREEN.DAILY)
-          },
-          content: <>
-            {medicineCandidates.map((candidate, index) => (
-              <MedicineRow
-                key={candidate.id}
-                medicine={`${index + 1}  ${t(`candidates.${candidate.id}`)}`}
-                detail={`${candidate.strength} · ${t('add.confidence', { value: candidate.confidence })}`}
-                selected={focus === index}
-                onClick={() => {
-                  setSelectedCandidate(candidate)
-                  navigate(SCREEN.DAILY)
-                }}
-              />
-            ))}
-            <p className="helper">{t('add.matchesHelp')}</p>
-          </>,
+            return
+          }
+          setManualName('')
+          navigate(SCREEN.MANUAL)
         }
+
+        return {
+          title: t('add.matchesTitle'), count: medicineCandidates.length + 1,
+          left: t('common.confirm'), right: t('common.back'),
+          onEnter: activateMatch,
+          onNumber: (number) => {
+            if (number >= 1 && number <= medicineCandidates.length + 1) setFocus(number - 1)
+          },
+          onArrowLeft: () => setFocus((current) => clamp(current - 1, 0, medicineCandidates.length)),
+          onArrowRight: () => setFocus((current) => clamp(current + 1, 0, medicineCandidates.length)),
+          onArrowUp: () => scrollMatchCard(-1),
+          onArrowDown: () => scrollMatchCard(1),
+          content: <MedicineMatchDeck
+            candidates={localizedCandidates}
+            index={focus}
+            onChange={setFocus}
+            onActivate={activateMatch}
+            scrollRef={matchScrollRef}
+            labels={{
+              primaryEffect: t('matchCard.primaryEffect'),
+              sideEffects: t('matchCard.sideEffects'),
+              indications: t('matchCard.indications'),
+              manualTitle: t('matchCard.manualTitle'),
+              manualHelp: t('matchCard.manualHelp'),
+            }}
+          />,
+        }
+      }
 
       case SCREEN.DAILY:
         return {
@@ -628,17 +658,21 @@ export default function App() {
 
     switch (event.key) {
       case 'ArrowUp':
-        if (!screenConfig.horizontal && screenConfig.count > 1) move(-1, screenConfig.count)
+        if (screenConfig.onArrowUp) screenConfig.onArrowUp()
+        else if (!screenConfig.horizontal && screenConfig.count > 1) move(-1, screenConfig.count)
         break
       case 'ArrowDown':
-        if (!screenConfig.horizontal && screenConfig.count > 1) move(1, screenConfig.count)
+        if (screenConfig.onArrowDown) screenConfig.onArrowDown()
+        else if (!screenConfig.horizontal && screenConfig.count > 1) move(1, screenConfig.count)
         break
       case 'ArrowLeft':
         if (screen === SCREEN.QUANTITY || (screen === SCREEN.REMINDER_ALERT && focus === 1)) adjustQuantity(-0.5)
+        else if (screenConfig.onArrowLeft) screenConfig.onArrowLeft()
         else if (screenConfig.horizontal) setDecision(0)
         break
       case 'ArrowRight':
         if (screen === SCREEN.QUANTITY || (screen === SCREEN.REMINDER_ALERT && focus === 1)) adjustQuantity(0.5)
+        else if (screenConfig.onArrowRight) screenConfig.onArrowRight()
         else if (screenConfig.horizontal) setDecision(1)
         break
       case 'Enter':

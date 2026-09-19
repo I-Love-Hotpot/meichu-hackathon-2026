@@ -19,7 +19,8 @@ npm run build
 ## Controls
 
 - `↑` / `↓`: move focus
-- `←` / `→`: choose or adjust
+- `←` / `→`: choose, adjust, or flip medicine-match cards
+- `↑` / `↓` on a match card: scroll card details
 - `Enter`: confirm
 - `Escape`: left soft key
 - `1`–`5`: home feature shortcuts
