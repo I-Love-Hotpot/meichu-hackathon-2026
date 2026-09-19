@@ -4,12 +4,12 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
+    expose:
       - "3001"
     environment:
       PORT: 3001
-      DB_HOST: ${DB_HOST:?DB_HOST is required}
-      DB_PORT: ${DB_PORT:-3306}
+      DB_HOST: db
+      DB_PORT: 3306
       DB_USER: ${DB_USER:?DB_USER is required}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       DB_DATABASE: ${DB_DATABASE:?DB_DATABASE is required}
@@ -19,17 +19,28 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3001/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+          "fetch('http://127.0.0.1:3001/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
         ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - coolify
+      - db-net
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
+    expose:
       - "80"
+    networks:
+      - coolify
+
+networks:
+  coolify:
+    external: true
+  db-net:
+    external: true
