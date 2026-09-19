@@ -30,6 +30,15 @@
     "medicineQuestions": "用藥諮詢精靈",
     "language": "語言 / Language"
   },
+  "demoReset": {
+    "title": "重置 Demo 資料",
+    "warningTitle": "確定重置全部資料？",
+    "description": "這會清除用藥紀錄、對話歷史、我的藥袋與已儲存的藥品設定。",
+    "irreversible": "此動作無法復原；顯示語言會保留。",
+    "yes": "是，重置",
+    "no": "否",
+    "choiceLabel": "確認是否重置 Demo 資料"
+  },
   "chat": {
     "title": "用藥諮詢精靈",
     "searchTitle": "搜尋藥品",
@@ -43,6 +52,12 @@
     "history": "歷史紀錄",
     "newChat": "新對話",
     "historyEmpty": "尚無對話紀錄。",
+    "untitled": "用藥問題",
+    "generalChat": "一般用藥問題",
+    "clearHistory": "清除所有對話紀錄",
+    "clearHistoryTitle": "清除歷史紀錄",
+    "clearHistoryAction": "全部清除",
+    "clearHistoryConfirm": "確定要清除儲存在此瀏覽器的所有對話紀錄嗎？此動作無法復原。",
     "send": "發送",
     "searchLabel": "藥品名稱或許可證字號",
     "searchPlaceholder": "例如：ASPIRIN",
@@ -90,7 +105,7 @@
     "requestTimedOut": "請求逾時，請再試一次。",
     "chatNetworkError": "無法連線至用藥諮詢服務，請檢查網路後重試。",
     "chatUnavailable": "用藥諮詢服務暫時無法使用。",
-    "privacy": "訊息與藥袋文字會傳送至 Gemini；CSV 中文欄位會傳送至 Google Cloud Translation 翻譯為英文。本頁僅保留目前工作階段，重新載入後即清除。"
+    "privacy": "訊息與藥袋文字會傳送至 Gemini；CSV 中文欄位會傳送至 Google Cloud Translation 翻譯為英文。成功的對話會儲存在此瀏覽器（最多 20 筆），可從歷史紀錄清除；藥袋文字不會存入歷史紀錄。"
   },
   "language": {
     "title": "語言",
@@ -166,9 +181,9 @@
     "quantityTitle": "修改數量",
     "quantityPrompt": "調整本次服用數量",
     "quantityHelp": "← → 每次調整 0.5；數字鍵直接輸入，* 為小數點",
-    "quantityValue": "{{value}} 錠",
-    "decrease": "減少 0.5 錠",
-    "increase": "增加 0.5 錠",
+    "quantityValue": "{{value}} {{unit}}",
+    "decrease": "減少 0.5 {{unit}}",
+    "increase": "增加 0.5 {{unit}}",
     "unitPill": "錠",
     "unitCapsule": "粒",
     "detail": "{{time}} · {{amount}} {{unit}}"
@@ -177,10 +192,15 @@
     "title": "歷史紀錄",
     "detailTitle": "紀錄詳情",
     "updateTitle": "更新紀錄",
-    "changeQuantity": "是否修改服用數量？",
+    "editQuantity": "修改服用數量",
+    "deleteRecord": "刪除這筆紀錄",
+    "deleteTitle": "刪除服藥紀錄？",
+    "deleteWarning": "這筆資料將從歷史紀錄移除",
+    "deleteConfirm": "刪除",
     "today": "今天",
     "yesterday": "昨天",
     "thursday": "週四",
+    "empty": "尚無用藥紀錄。",
     "dayLabel": "{{date}}  {{relative}} · {{done}}/{{total}}"
   },
   "medicines": {

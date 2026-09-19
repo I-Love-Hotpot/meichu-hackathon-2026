@@ -28,10 +28,34 @@ export const todayDoses = [
   { id: 'lipid-pm', medicineId: 'lipid', time: '20:00', amount: 1, unit: 'unitPill', taken: false },
 ]
 
-export const historyDays = [
-  { id: 'today', date: '09/19', relative: 'today', done: 2, total: 3, state: 'focus' },
-  { id: 'yesterday', date: '09/18', relative: 'yesterday', done: 3, total: 3, state: 'success' },
-  { id: 'thursday', date: '09/17', relative: 'thursday', done: 2, total: 3, state: 'default' },
+export const demoDoseDays = [
+  {
+    date: '2026-09-19',
+    updatedAt: '2026-09-19T01:41:00.000Z',
+    doses: [
+      { id: 'pressure-am', medicineId: 'pressure', time: '08:00', amount: 1, unit: 'unitPill', taken: true },
+      { id: 'vitamin-d', medicineId: 'vitamin-d', time: '12:00', amount: 1, unit: 'unitCapsule', taken: true },
+      { id: 'lipid-pm', medicineId: 'lipid', time: '20:00', amount: 1, unit: 'unitPill', taken: false },
+    ],
+  },
+  {
+    date: '2026-09-18',
+    updatedAt: '2026-09-18T12:02:00.000Z',
+    doses: [
+      { id: 'pressure-am', medicineId: 'pressure', time: '08:00', amount: 1, unit: 'unitPill', taken: true },
+      { id: 'vitamin-d', medicineId: 'vitamin-d', time: '12:00', amount: 1, unit: 'unitCapsule', taken: true },
+      { id: 'lipid-pm', medicineId: 'lipid', time: '20:00', amount: 1, unit: 'unitPill', taken: true },
+    ],
+  },
+  {
+    date: '2026-09-17',
+    updatedAt: '2026-09-17T12:02:00.000Z',
+    doses: [
+      { id: 'pressure-am', medicineId: 'pressure', time: '08:00', amount: 1, unit: 'unitPill', taken: true },
+      { id: 'vitamin-d', medicineId: 'vitamin-d', time: '12:00', amount: 1, unit: 'unitCapsule', taken: true },
+      { id: 'lipid-pm', medicineId: 'lipid', time: '20:00', amount: 1, unit: 'unitPill', taken: false },
+    ],
+  },
 ]
 
 // Matches the planned API response shape. Replace this fixture with search results.

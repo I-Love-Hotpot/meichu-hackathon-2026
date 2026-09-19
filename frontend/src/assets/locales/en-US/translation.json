@@ -30,6 +30,15 @@
     "language": "Language",
     "medicineQuestions": "Medicine Assistant"
   },
+  "demoReset": {
+    "title": "Reset demo data",
+    "warningTitle": "Reset all demo data?",
+    "description": "This will clear medicine records, conversation history, medicine bag entries, and saved medicine settings.",
+    "irreversible": "This action cannot be undone. Your display language will be kept.",
+    "yes": "Yes, reset",
+    "no": "No",
+    "choiceLabel": "Confirm demo data reset"
+  },
   "chat": {
     "title": "Medicine Assistant",
     "searchTitle": "Search medicine",
@@ -43,6 +52,12 @@
     "history": "History",
     "newChat": "New Chat",
     "historyEmpty": "No conversation history yet.",
+    "untitled": "Medicine question",
+    "generalChat": "General medicine question",
+    "clearHistory": "Clear all conversation history",
+    "clearHistoryTitle": "Clear history",
+    "clearHistoryAction": "Clear all",
+    "clearHistoryConfirm": "Clear all conversation history stored in this browser? This cannot be undone.",
     "send": "Send",
     "searchLabel": "Medicine name or license ID",
     "searchPlaceholder": "Example: ASPIRIN",
@@ -90,7 +105,7 @@
     "requestTimedOut": "The request timed out. Please try again.",
     "chatNetworkError": "Cannot connect to the medicine assistant. Check the network and try again.",
     "chatUnavailable": "The medicine assistant is temporarily unavailable.",
-    "privacy": "Messages and package text are sent to Gemini. Chinese CSV fields are sent to Google Cloud Translation for English translation. This page keeps only the current session and clears it when reloaded."
+    "privacy": "Messages and package text are sent to Gemini. Chinese CSV fields are sent to Google Cloud Translation for English translation. Successful conversations are stored in this browser (up to 20) and can be cleared from History. Package text is not saved in History."
   },
   "language": {
     "title": "Language",
@@ -166,9 +181,9 @@
     "quantityTitle": "Edit quantity",
     "quantityPrompt": "Set the quantity taken",
     "quantityHelp": "← → changes 0.5; type a number directly, * is decimal",
-    "quantityValue": "{{value}} pill",
-    "decrease": "Decrease by 0.5 pill",
-    "increase": "Increase by 0.5 pill",
+    "quantityValue": "{{value}} {{unit}}",
+    "decrease": "Decrease by 0.5 {{unit}}",
+    "increase": "Increase by 0.5 {{unit}}",
     "unitPill": "pill",
     "unitCapsule": "capsule",
     "detail": "{{time}} · {{amount}} {{unit}}"
@@ -177,10 +192,15 @@
     "title": "Dose history",
     "detailTitle": "Dose details",
     "updateTitle": "Update record",
-    "changeQuantity": "Change the quantity taken?",
+    "editQuantity": "Edit quantity",
+    "deleteRecord": "Delete this record",
+    "deleteTitle": "Delete dose record?",
+    "deleteWarning": "This record will be removed from dose history",
+    "deleteConfirm": "Delete",
     "today": "Today",
     "yesterday": "Yesterday",
     "thursday": "Thursday",
+    "empty": "No dose history yet.",
     "dayLabel": "{{date}}  {{relative}} · {{done}}/{{total}}"
   },
   "medicines": {
