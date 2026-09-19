@@ -357,7 +357,7 @@
         ],
         "summary": "Recognize medicine candidates with the local model",
         "operationId": "recognizeMedicineImage",
-        "description": "Accepts one raw JPEG, PNG, or WebP image of at most 5 MiB. The bundled Python pipeline loads pill_detector.pt, detects the pill, compares color and shape, and returns up to three complete license numbers. Each license number is then looked up in MariaDB using the same repository as GET /api/medicine.",
+        "description": "Accepts one raw JPEG, PNG, or WebP image of at most 5 MiB. The backend forwards it to the separate pill-inference container over the private Docker network. That service loads pill_detector.pt and returns only a pill_id array containing up to three complete license numbers. Each ID is then looked up in MariaDB using the same repository as GET /api/medicine.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1001,7 +1001,7 @@
           },
           "records": {
             "type": "array",
-            "maxItems": 8,
+            "maxItems": 3,
             "items": {
               "$ref": "#/components/schemas/MedicineRecord"
             }
@@ -1157,11 +1157,11 @@
             "items": {
               "type": "object",
               "required": [
-                "license_number",
+                "pill_id",
                 "medicine"
               ],
               "properties": {
-                "license_number": {
+                "pill_id": {
                   "type": "string"
                 },
                 "medicine": {
@@ -1177,7 +1177,20 @@
           },
           "inference": {
             "type": "object",
-            "description": "Raw normalized output from the bundled local inference pipeline."
+            "additionalProperties": false,
+            "required": [
+              "pill_id"
+            ],
+            "properties": {
+              "pill_id": {
+                "type": "array",
+                "maxItems": 3,
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Exact JSON returned by the separate inference container."
           }
         }
       },

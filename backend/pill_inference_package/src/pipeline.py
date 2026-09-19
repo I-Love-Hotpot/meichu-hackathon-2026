@@ -79,10 +79,4 @@ class PillInferencePipeline:
 
     def predict(self, image_path):
         details = self.predict_details(image_path)
-        return {
-            "input_image": str(Path(image_path).resolve()),
-            "status": details["status"],
-            "detected_features": details["features"],
-            "predictions": details["candidates"],
-            "detection_source": details["detection_source"],
-        }
+        return {"pill_id": [candidate["pill_id"] for candidate in details["candidates"]]}

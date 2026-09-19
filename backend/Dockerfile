@@ -1,23 +1,13 @@
-FROM node:22-bookworm-slim
+FROM node:22-alpine
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-COPY pill_inference_package/requirements.txt ./pill_inference_package/requirements.txt
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 python3-venv libgl1 libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/* \
-    && python3 -m venv /opt/pill-venv \
-    && /opt/pill-venv/bin/pip install --no-cache-dir --upgrade pip \
-    && /opt/pill-venv/bin/pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision \
-    && /opt/pill-venv/bin/pip install --no-cache-dir -r pill_inference_package/requirements.txt \
-    && npm ci --omit=dev
-
-COPY . .
-
-ENV PATH="/opt/pill-venv/bin:$PATH"
-ENV MEDICINE_RECOGNIZER_SCRIPT="/app/pill_inference_package/inference.py"
+RUN npm ci --omit=dev
+COPY api-docs ./api-docs
+COPY resources ./resources
+COPY scripts ./scripts
+COPY src ./src
 
 EXPOSE 3001
 

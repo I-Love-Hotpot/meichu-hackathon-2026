@@ -1,8 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import Fastify from "fastify";
 import medicineRoutes from "../src/routes/medicine.routes.js";
 import {
@@ -25,40 +22,26 @@ const medicine = {
   image_url: "https://example.test/pill.jpg",
 };
 
-async function fakeRecognizer(t, payload) {
-  const directory = await mkdtemp(join(tmpdir(), "recognizer-cli-test-"));
-  t.after(() => rm(directory, { recursive: true, force: true }));
-  const script = join(directory, "recognizer.mjs");
-  await writeFile(script, `
-    const args = process.argv.slice(2);
-    if (args[0] !== "--image" || args[2] !== "--output") process.exit(9);
-    console.log(${JSON.stringify(JSON.stringify(payload))});
-  `);
-  return {
-    MEDICINE_RECOGNIZER_SCRIPT: script,
-    MEDICINE_RECOGNIZER_PYTHON: process.execPath,
-    MEDICINE_RECOGNIZER_TIMEOUT_MS: "5000",
+const env = {
+  MEDICINE_INFERENCE_URL: "http://pill-inference:8000",
+  MEDICINE_RECOGNIZER_TIMEOUT_MS: "5000",
+};
+
+function inferenceResponse(pillIds) {
+  return async (url, options) => {
+    assert.equal(url, "http://pill-inference:8000/recognize");
+    assert.equal(options.headers["Content-Type"], "image/jpeg");
+    assert.deepEqual(options.body, jpeg);
+    return new Response(JSON.stringify({ pill_id: pillIds }));
   };
 }
 
-test("local model IDs are looked up in MariaDB and mapped for the frontend", async (t) => {
-  const env = await fakeRecognizer(t, {
-    status: "candidates_found",
-    detected_features: { colors: ["棕色"], shape: "其他" },
-    detection_source: "yolo_conf_0.25",
-    predictions: [
-      {
-        pill_id: "000386",
-        license_number: medicine.license_number,
-        drug_name: medicine.chinese_name,
-        appearance_score: 1,
-      },
-    ],
-  });
+test("inference-service pill IDs are looked up in MariaDB and mapped for the frontend", async () => {
   const result = await recognizeMedicineImage(
     { image: jpeg, mediaType: "image/jpeg" },
     {
       env,
+      fetchImpl: inferenceResponse([medicine.license_number]),
       repository: {
         findByLicenseNumber: async (id) => {
           assert.equal(id, medicine.license_number);
@@ -73,23 +56,21 @@ test("local model IDs are looked up in MariaDB and mapped for the frontend", asy
   assert.equal(result.matchStrategy, "appearance");
   assert.equal(result.source, "MariaDB");
   assert.deepEqual(result.medicines, [
-    { license_number: medicine.license_number, medicine },
+    { pill_id: medicine.license_number, medicine },
   ]);
   assert.equal(result.records[0].displayName, medicine.english_name);
   assert.equal(result.records[0].licenseNumber, medicine.license_number);
-  assert.equal(result.inference.detectedFeatures.shape, "其他");
+  assert.deepEqual(result.inference, { pill_id: [medicine.license_number] });
 });
 
-test("no detection succeeds with empty candidate arrays", async (t) => {
-  const env = await fakeRecognizer(t, {
-    status: "no_detection",
-    detected_features: {},
-    predictions: [],
-    detection_source: "no_detection",
-  });
+test("no detection succeeds with empty candidate arrays", async () => {
   const result = await recognizeMedicineImage(
     { image: jpeg, mediaType: "image/jpeg" },
-    { env, repository: { findByLicenseNumber: async () => assert.fail("must not query") } },
+    {
+      env,
+      fetchImpl: inferenceResponse([]),
+      repository: { findByLicenseNumber: async () => assert.fail("must not query") },
+    },
   );
   assert.equal(result.matchStrategy, "none");
   assert.deepEqual(result.records, []);
@@ -138,7 +119,7 @@ test("raw image API passes bytes and repository to local recognition", async (t)
     medicines: [],
     total: 0,
     recordCount: 0,
-    inference: { ids: [], predictions: [] },
+    inference: { pill_id: [] },
   };
   const app = await createRouteApp(t, async (input, options) => {
     received = { input, options };

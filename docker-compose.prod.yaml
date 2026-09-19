@@ -10,6 +10,7 @@ services:
       PORT: 3001
       DB_HOST: db
       DB_PORT: 3306
+      MEDICINE_INFERENCE_URL: http://pill-inference:8000
     healthcheck:
       test:
         [
@@ -25,6 +26,7 @@ services:
     networks:
       - coolify
       - db-net
+      - medicine-inference
 
   frontend:
     build:
@@ -41,3 +43,6 @@ networks:
     external: true
   db-net:
     external: true
+  medicine-inference:
+    external: true
+    name: medicine-inference-net

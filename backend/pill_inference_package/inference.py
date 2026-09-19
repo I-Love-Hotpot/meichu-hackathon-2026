@@ -1,4 +1,4 @@
-"""CLI and Python API for colour-and-shape-only Top-3 pill inference."""
+"""CLI and Python API returning only Top-3 pill IDs."""
 
 import argparse
 import json
@@ -27,7 +27,7 @@ def get_pipeline(config_path=DEFAULT_CONFIG, weights=None):
 
 
 def predict(image_path, weights=None, config_path=DEFAULT_CONFIG):
-    """Return detected appearance and up to three same-colour/shape drugs."""
+    """Return ``{"pill_id": [...]}`` with up to three full license numbers."""
     return get_pipeline(config_path=config_path, weights=weights).predict(image_path)
 
 
@@ -52,10 +52,7 @@ def _batch_predict(pipeline, image_dir, output_dir, limit=None):
         except Exception as error:
             result = {
                 "input_image": str(image_path.resolve()),
-                "status": "inference_error",
-                "error": str(error),
-                "detected_features": {},
-                "predictions": [],
+                "pill_id": [],
             }
         output_path = output_dir / image_path.stem / "prediction.json"
         _write_json(output_path, result)

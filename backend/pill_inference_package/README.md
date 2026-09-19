@@ -1,7 +1,7 @@
 # 顏色／形狀 Top-3 藥物推論套件
 
 輸入藥物圖片後，套件會使用 YOLO 偵測藥丸，再分析顏色與形狀，最後從
-`database/42_2.csv` 找出三個具有相同顏色與形狀的藥物供參考。
+`../resources/42_2.csv` 找出三個具有相同顏色與形狀的藥物供參考。
 
 本流程不載入 OCR 模型，也不使用藥錠刻印文字判斷。顏色與形狀相同的藥物可能很多，
 因此輸出只能作為候選參考，不能視為醫療辨識結果。
@@ -20,7 +20,7 @@ python -m venv .venv
 
 ```text
 models/pill_detector.pt
-database/42_2.csv
+../resources/42_2.csv
 config.yaml
 ```
 
@@ -38,31 +38,15 @@ python inference.py --image path/to/pill.png --output outputs/prediction.json
 .\.venv\Scripts\python.exe inference.py --image path/to/pill.png --output outputs/prediction.json
 ```
 
-輸出範例：
+輸出只包含 `pill_id`；每個值都是可直接查詢 MariaDB 的完整許可證字號：
 
 ```json
 {
-  "input_image": "C:\\images\\pill.jpg",
-  "status": "candidates_found",
-  "detected_features": {
-    "colors": ["白色"],
-    "shape": "圓形"
-  },
-  "predictions": [
-    {
-      "pill_id": "000018",
-      "drug_name": "苯酮安錠50毫克",
-      "appearance_score": 1.0,
-      "colors": ["白色"],
-      "shape": "圓形"
-    }
-  ],
-  "detection_source": "yolo_conf_0.25"
+  "pill_id": ["內衛成製字第000018號"]
 }
 ```
 
-`predictions` 最多包含三筆。`appearance_score` 只表示資料庫顏色與形狀完全相符，
-不是藥物辨識機率。
+`pill_id` 最多包含三筆。候選只依資料庫顏色與形狀完全相符，不是藥物辨識機率。
 
 ## 整個圖片資料夾
 
@@ -88,8 +72,7 @@ outputs/batch/DSC_0000021/prediction.json
 from inference import predict
 
 result = predict("path/to/pill.png")
-print(result["detected_features"])
-print(result["predictions"])
+print(result["pill_id"])
 ```
 
 ## 錯誤碼
@@ -99,4 +82,4 @@ print(result["predictions"])
 - Exit `4`：資料庫不存在或格式錯誤。
 - Exit `5`：其他推論錯誤。
 
-若 YOLO 沒有偵測到藥丸，`status` 為 `no_detection`，`predictions` 為空陣列。
+若 YOLO 沒有偵測到藥丸或沒有候選，輸出為 `{ "pill_id": [] }`。
