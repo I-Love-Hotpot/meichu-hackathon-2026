@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  recognizeMedicineImage,
+  searchMedicines,
+} from "./api/medicine.js";
 import DeviceShell from "./components/DeviceShell.jsx";
 import MedicineChat from "./components/MedicineChat.jsx";
 import MedicineMatchDeck from "./components/MedicineMatchDeck.jsx";
@@ -13,7 +17,6 @@ import {
 } from "./components/Controls.jsx";
 import {
   historyDays,
-  medicineCandidates,
   medicines,
   todayDoses as initialDoses,
 } from "./data/fixtures.js";
@@ -62,33 +65,40 @@ const SCREEN = {
 };
 
 const HISTORY_KEY = "medaboutyou";
-const MOCK_CHAT_MEDICINES = [
-  {
-    recordId: "mock-aspirin-100",
-    displayName: "ASPIRIN 100 MG ENTERIC-COATED TABLETS",
-    englishName: "ASPIRIN",
-    licenseNumber: "Mock result 01",
-    isMock: true,
-  },
-  {
-    recordId: "mock-acetaminophen-500",
-    displayName: "ACETAMINOPHEN 500 MG TABLETS",
-    englishName: "ACETAMINOPHEN",
-    licenseNumber: "Mock result 02",
-    isMock: true,
-  },
-  {
-    recordId: "mock-amoxicillin-500",
-    displayName: "AMOXICILLIN 500 MG CAPSULES",
-    englishName: "AMOXICILLIN",
-    licenseNumber: "Mock result 03",
-    isMock: true,
-  },
-];
 const SCREEN_VALUES = new Set(Object.values(SCREEN));
 const LANGUAGE_CODES = ["zh-TW", "en-US"];
 const CPR_STEP_COUNT = 6;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const splitSourceVariants = (value = "") =>
+  value.split(";;;").map((item) => item.trim());
+const imageVariantFor = (value = "") => {
+  const variants = splitSourceVariants(value);
+  const index = variants.findIndex((item) => /^https?:\/\//i.test(item));
+  return { index: Math.max(0, index), url: index >= 0 ? variants[index] : "" };
+};
+const sourceVariantAt = (value = "", index = 0) => {
+  const variants = splitSourceVariants(value);
+  return variants.length === 1 ? variants[0] : variants[index] || "";
+};
+const extractStrength = (record) =>
+  `${record.displayName} ${record.englishName}`.match(
+    /\b\d+(?:\.\d+)?\s*(?:mcg|mg|g|iu|ml|%)\b/i,
+  )?.[0] || "";
+const normalizeMedicineText = (value = "") =>
+  value.normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+const recognitionStrengthFor = (record, recognition) => {
+  const medications = recognition?.medications || [];
+  const names = [record.displayName, record.englishName]
+    .map(normalizeMedicineText)
+    .filter(Boolean);
+  const matched = medications.find((medicine) => {
+    const medicineName = normalizeMedicineText(medicine.name);
+    return names.some(
+      (name) => name.includes(medicineName) || medicineName.includes(name),
+    );
+  });
+  return matched?.strength || "";
+};
 const getDefaultFocusForScreen = (screen, currentLanguage) => {
   if (screen !== SCREEN.LANGUAGE) return 0;
   const languageIndex = LANGUAGE_CODES.findIndex(
@@ -192,13 +202,16 @@ export default function App() {
   const [chatSearchQuery, setChatSearchQuery] = useState("");
   const [chatSearchResult, setChatSearchResult] = useState(null);
   const [chatSearching, setChatSearching] = useState(false);
+  const [chatSearchError, setChatSearchError] = useState("");
   const [chatMedicine, setChatMedicine] = useState(null);
   const [chatRecognitionText, setChatRecognitionText] = useState("");
   const [chatEditingField, setChatEditingField] = useState(null);
   const [selectedMedicine, setSelectedMedicine] = useState(medicines[0]);
-  const [selectedCandidate, setSelectedCandidate] = useState(
-    medicineCandidates[0],
-  );
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [recognitionRecords, setRecognitionRecords] = useState([]);
+  const [recognitionEvidence, setRecognitionEvidence] = useState(null);
+  const [recognitionStatus, setRecognitionStatus] = useState("idle");
+  const [recognitionError, setRecognitionError] = useState("");
   const [uploadedName, setUploadedName] = useState("");
   const [cprStep, setCprStep] = useState(0);
   const [doses, setDoses] = useStoredDoses();
@@ -208,10 +221,14 @@ export default function App() {
   const shellRef = useRef(null);
   const matchScrollRef = useRef(null);
   const medicineChatRef = useRef(null);
-  const chatSearchTimerRef = useRef(null);
+  const chatSearchRequestRef = useRef(null);
+  const recognitionRequestRef = useRef(null);
+  const recognitionSourceRef = useRef(null);
   const quantityBufferRef = useRef("");
   const quantityTimerRef = useRef(null);
   const pendingResetRef = useRef(null);
+  const activeScreenRef = useRef(screen);
+  activeScreenRef.current = screen;
 
   const currentLanguage = i18n.resolvedLanguage || i18n.language;
   const currentLanguageRef = useRef(currentLanguage);
@@ -229,7 +246,9 @@ export default function App() {
   };
   const medicineSchedule = (medicine) =>
     medicine.customDirections ||
-    (medicine.isCustom
+    (medicine.isCatalog
+      ? medicine.strength || t("medicines.catalogEntry")
+      : medicine.isCustom
       ? t("medicines.manualEntry")
       : t(`medicines.${medicine.id}.schedule`));
   const medicineUsage = (id) => t(`medicines.${id}.usage`);
@@ -272,16 +291,54 @@ export default function App() {
     decreaseLabel: t("dose.decrease"),
     increaseLabel: t("dose.increase"),
   };
-  const localizedCandidates = medicineCandidates.map((candidate) => {
-    const name = t(`candidates.${candidate.id}`);
+  const localizedCandidates = recognitionRecords.map((record) => {
+    const name =
+      record.displayName || record.englishName || record.licenseNumber;
+    const imageVariant = imageVariantFor(record.imageUrl);
+    const imprints = [
+      sourceVariantAt(record.imprint1, imageVariant.index),
+      sourceVariantAt(record.imprint2, imageVariant.index),
+    ]
+      .filter(Boolean)
+      .join(" / ");
     return {
-      ...candidate,
+      id: record.recordId,
+      recordId: record.recordId,
       name,
-      genericName: t(`candidateDetails.${candidate.id}.genericName`),
-      primaryEffect: t(`candidateDetails.${candidate.id}.primaryEffect`),
-      sideEffects: t(`candidateDetails.${candidate.id}.sideEffects`),
-      indications: t(`candidateDetails.${candidate.id}.indications`),
+      genericName: name,
+      strength:
+        extractStrength(record) ||
+        recognitionStrengthFor(record, recognitionEvidence),
+      image: imageVariant.url,
       imageAlt: t("matchCard.imageAlt", { name }),
+      sourceRecord: record,
+      details: [
+        {
+          label: t("matchCard.licenseNumber"),
+          value: record.licenseNumber,
+        },
+        {
+          label: t("matchCard.dosageForm"),
+          value: sourceVariantAt(record.dosageForm, imageVariant.index),
+        },
+        {
+          label: t("matchCard.shape"),
+          value: sourceVariantAt(record.shape, imageVariant.index),
+        },
+        {
+          label: t("matchCard.color"),
+          value: sourceVariantAt(record.color, imageVariant.index),
+        },
+        {
+          label: t("matchCard.scoreLine"),
+          value: sourceVariantAt(record.scoreLine, imageVariant.index),
+        },
+        {
+          label: t("matchCard.size"),
+          value: sourceVariantAt(record.size, imageVariant.index),
+        },
+        { label: t("matchCard.imprints"), value: imprints },
+      ].filter((detail) => detail.value),
     };
   });
   const chatBagCandidates = activeMedicines.map((medicine) => {
@@ -322,6 +379,7 @@ export default function App() {
       { [HISTORY_KEY]: true, screen: next, depth, focus: nextFocus },
       "",
     );
+    activeScreenRef.current = next;
     setScreen(next);
     setFocus(nextFocus);
   };
@@ -334,6 +392,7 @@ export default function App() {
         { [HISTORY_KEY]: true, screen: next, depth, focus: nextFocus },
         "",
       );
+      activeScreenRef.current = next;
       setScreen(next);
       setFocus(nextFocus);
     },
@@ -355,11 +414,12 @@ export default function App() {
   };
 
   const clearChatSetup = () => {
-    window.clearTimeout(chatSearchTimerRef.current);
-    chatSearchTimerRef.current = null;
+    chatSearchRequestRef.current?.abort();
+    chatSearchRequestRef.current = null;
     setChatSearchQuery("");
     setChatSearchResult(null);
     setChatSearching(false);
+    setChatSearchError("");
     setChatMedicine(null);
     setChatRecognitionText("");
     setChatEditingField(null);
@@ -384,29 +444,131 @@ export default function App() {
     window.requestAnimationFrame(() => shellRef.current?.focus());
   };
 
-  const searchChatMedicine = () => {
+  const searchChatMedicine = async () => {
     const query = chatSearchQuery.trim();
-    if (query.length < 2 || chatSearching) return;
+    if (query.length < 2 || query.length > 200) {
+      setChatSearchError(t("chat.searchValidation"));
+      return;
+    }
+    if (chatSearching) return;
 
-    window.clearTimeout(chatSearchTimerRef.current);
+    chatSearchRequestRef.current?.abort();
+    const controller = new AbortController();
+    chatSearchRequestRef.current = controller;
     setChatEditingField(null);
     setChatSearching(true);
+    setChatSearchError("");
     setChatSearchResult(null);
 
-    chatSearchTimerRef.current = window.setTimeout(() => {
-      const normalizedQuery = query.toLocaleLowerCase();
-      const matches = MOCK_CHAT_MEDICINES.filter((medicine) =>
-        [medicine.displayName, medicine.englishName, medicine.licenseNumber]
-          .join(" ")
-          .toLocaleLowerCase()
-          .includes(normalizedQuery),
+    try {
+      const result = await searchMedicines(query, {
+        signal: controller.signal,
+      });
+      if (chatSearchRequestRef.current !== controller) return;
+      if (activeScreenRef.current !== SCREEN.MEDICINE_CHAT_MEDICINE) return;
+      setChatSearchResult(result);
+      setFocus(result.records.length ? 1 : 0);
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      if (chatSearchRequestRef.current !== controller) return;
+      if (activeScreenRef.current !== SCREEN.MEDICINE_CHAT_MEDICINE) return;
+      setChatSearchError(
+        error.status === 400
+          ? t("chat.searchValidation")
+          : error.status === 0
+            ? t("chat.searchNetworkError")
+            : t("chat.searchUnavailable"),
       );
-      const records = matches.length ? matches : MOCK_CHAT_MEDICINES;
-      setChatSearchResult({ total: records.length, records, mock: true });
-      setChatSearching(false);
-      setFocus(1);
-      chatSearchTimerRef.current = null;
-    }, 350);
+      setFocus(0);
+    } finally {
+      if (chatSearchRequestRef.current === controller) {
+        chatSearchRequestRef.current = null;
+        setChatSearching(false);
+      }
+    }
+  };
+
+  const recognitionFailureMessage = (error, sourceKind) => {
+    if (error.status === 400)
+      return t(
+        sourceKind === "text"
+          ? "add.searchValidation"
+          : "add.invalidImage",
+      );
+    if (error.status === 413) return t("add.imageTooLarge");
+    if (error.status === 415) return t("add.unsupportedImage");
+    if (error.status === 422) return t("add.unreadableImage");
+    if (error.status === 429) return t("add.recognitionBusy");
+    if (error.status === 504) return t("add.recognitionTimedOut");
+    if (error.status === 0) return t("add.recognitionNetworkError");
+    return t("add.recognitionUnavailable");
+  };
+
+  const runRecognition = async (source) => {
+    recognitionRequestRef.current?.abort();
+    recognitionSourceRef.current = source;
+    if (
+      source.kind === "text" &&
+      (source.query.length < 2 || source.query.length > 200)
+    ) {
+      recognitionRequestRef.current = null;
+      setRecognitionRecords([]);
+      setRecognitionEvidence(null);
+      setRecognitionStatus("error");
+      setRecognitionError(t("add.searchValidation"));
+      setSelectedCandidate(null);
+      setFocus(0);
+      return;
+    }
+
+    const controller = new AbortController();
+    recognitionRequestRef.current = controller;
+    setRecognitionRecords([]);
+    setRecognitionEvidence(null);
+    setRecognitionError("");
+    setRecognitionStatus("loading");
+    setSelectedCandidate(null);
+    setFocus(0);
+
+    try {
+      const result =
+        source.kind === "photo"
+          ? await recognizeMedicineImage(source.file, {
+              signal: controller.signal,
+            })
+          : await searchMedicines(source.query, {
+              signal: controller.signal,
+            });
+      if (recognitionRequestRef.current !== controller) return;
+      if (activeScreenRef.current !== SCREEN.RECOGNIZING) return;
+
+      const records = result.records.slice(0, 8);
+      setRecognitionRecords(records);
+      setRecognitionEvidence(
+        source.kind === "photo" ? result.recognition : null,
+      );
+      setRecognitionStatus(records.length ? "success" : "empty");
+      setFocus(0);
+      replace(SCREEN.MATCHES);
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      if (recognitionRequestRef.current !== controller) return;
+      setRecognitionStatus("error");
+      setRecognitionEvidence(null);
+      setRecognitionError(recognitionFailureMessage(error, source.kind));
+      setFocus(0);
+    } finally {
+      if (recognitionRequestRef.current === controller) {
+        recognitionRequestRef.current = null;
+      }
+    }
+  };
+
+  const retryRecognition = () => {
+    const source = recognitionSourceRef.current;
+    if (!source) return;
+    if (screen !== SCREEN.RECOGNIZING) replace(SCREEN.RECOGNIZING);
+    void runRecognition(source);
   };
 
   useEffect(() => {
@@ -417,11 +579,33 @@ export default function App() {
       SCREEN_VALUES.has(entry.screen) &&
       Number.isInteger(entry.depth)
     ) {
-      setScreen(entry.screen);
+      const restoredScreen = [SCREEN.RECOGNIZING, SCREEN.MATCHES].includes(
+        entry.screen,
+      )
+        ? SCREEN.ADD_METHOD
+        : entry.screen;
+      if (restoredScreen !== entry.screen) {
+        window.history.replaceState(
+          {
+            ...entry,
+            screen: restoredScreen,
+            focus: getDefaultFocusForScreen(
+              restoredScreen,
+              currentLanguageRef.current,
+            ),
+          },
+          "",
+        );
+      }
+      activeScreenRef.current = restoredScreen;
+      setScreen(restoredScreen);
       setFocus(
-        Number.isInteger(entry.focus)
+        restoredScreen === entry.screen && Number.isInteger(entry.focus)
           ? entry.focus
-          : getDefaultFocusForScreen(entry.screen, currentLanguageRef.current),
+          : getDefaultFocusForScreen(
+              restoredScreen,
+              currentLanguageRef.current,
+            ),
       );
     } else {
       window.history.replaceState(
@@ -436,6 +620,7 @@ export default function App() {
         },
         "",
       );
+      activeScreenRef.current = SCREEN.HOME;
       setScreen(SCREEN.HOME);
       setFocus(
         getDefaultFocusForScreen(SCREEN.HOME, currentLanguageRef.current),
@@ -456,10 +641,12 @@ export default function App() {
           { [HISTORY_KEY]: true, screen: next, depth: 1, focus: nextFocus },
           "",
         );
+        activeScreenRef.current = next;
         setScreen(next);
         setFocus(nextFocus);
         return;
       }
+      activeScreenRef.current = event.state.screen;
       setScreen(event.state.screen);
       setFocus(
         Number.isInteger(event.state.focus)
@@ -510,18 +697,27 @@ export default function App() {
   useEffect(
     () => () => {
       window.clearTimeout(quantityTimerRef.current);
-      window.clearTimeout(chatSearchTimerRef.current);
+      chatSearchRequestRef.current?.abort();
+      recognitionRequestRef.current?.abort();
     },
     [],
   );
 
   useEffect(() => {
-    if (screen !== SCREEN.RECOGNIZING) return undefined;
-    const timer = window.setTimeout(() => {
-      replace(SCREEN.MATCHES);
-    }, 1200);
-    return () => window.clearTimeout(timer);
-  }, [replace, screen]);
+    if (screen === SCREEN.MEDICINE_CHAT_MEDICINE) return;
+    chatSearchRequestRef.current?.abort();
+    chatSearchRequestRef.current = null;
+    setChatSearching(false);
+  }, [screen]);
+
+  useEffect(() => {
+    if (screen === SCREEN.RECOGNIZING || recognitionStatus !== "loading")
+      return;
+    recognitionRequestRef.current?.abort();
+    recognitionRequestRef.current = null;
+    setRecognitionStatus("error");
+    setRecognitionError(t("add.recognitionCanceled"));
+  }, [recognitionStatus, screen, t]);
 
   const adjustQuantity = (amount) => {
     quantityBufferRef.current = "";
@@ -560,6 +756,16 @@ export default function App() {
   };
 
   const openManualEntry = (mode, fromFocus = focus) => {
+    if (mode === "search") {
+      recognitionRequestRef.current?.abort();
+      recognitionRequestRef.current = null;
+      recognitionSourceRef.current = null;
+      setRecognitionRecords([]);
+      setRecognitionEvidence(null);
+      setRecognitionStatus("idle");
+      setRecognitionError("");
+      setSelectedCandidate(null);
+    }
     setManualName("");
     setManualDirections("");
     setManualEntryMode(mode);
@@ -582,6 +788,15 @@ export default function App() {
   };
 
   const openPhotoUpload = (fromFocus = focus) => {
+    recognitionRequestRef.current?.abort();
+    recognitionRequestRef.current = null;
+    recognitionSourceRef.current = null;
+    setRecognitionRecords([]);
+    setRecognitionEvidence(null);
+    setRecognitionStatus("idle");
+    setRecognitionError("");
+    setSelectedCandidate(null);
+    setUploadedName("");
     setSavedManualMedicine(null);
     setSelectedReminderTimes([]);
     setDecision(0);
@@ -595,6 +810,7 @@ export default function App() {
     if (manualEntryMode === "search") {
       setSavedManualMedicine(null);
       navigate(SCREEN.RECOGNIZING);
+      void runRecognition({ kind: "text", query: name });
       return;
     }
 
@@ -611,14 +827,17 @@ export default function App() {
     resetFlow(SCREEN.ADD_COMPLETE);
   };
 
-  const updateSavedManualMedicine = (updates) => {
+  const commitSavedMedicine = (updates) => {
     if (!savedManualMedicine) return;
     const medicine = { ...savedManualMedicine, ...updates };
     setSavedManualMedicine(medicine);
     setSelectedMedicine(medicine);
-    setUserMedicines((items) =>
-      items.map((item) => (item.id === medicine.id ? medicine : item)),
-    );
+    setUserMedicines((items) => {
+      const exists = items.some((item) => item.id === medicine.id);
+      return exists
+        ? items.map((item) => (item.id === medicine.id ? medicine : item))
+        : [...items, medicine];
+    });
   };
 
   const toggleReminder = (time) => {
@@ -635,12 +854,12 @@ export default function App() {
       return;
     }
     setSelectedReminderTimes([]);
-    updateSavedManualMedicine({ reminders: [] });
+    commitSavedMedicine({ reminders: [] });
     resetFlow(SCREEN.ADD_COMPLETE);
   };
 
   const completeReminderSetup = () => {
-    updateSavedManualMedicine({ reminders: selectedReminderTimes });
+    commitSavedMedicine({ reminders: selectedReminderTimes });
     resetFlow(SCREEN.ADD_COMPLETE);
   };
 
@@ -862,13 +1081,14 @@ export default function App() {
                 ref={fileInputRef}
                 className="visually-hidden"
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 capture="environment"
                 onChange={(event) => {
                   const [file] = event.target.files;
                   if (!file) return;
                   setUploadedName(file.name);
                   navigate(SCREEN.RECOGNIZING);
+                  void runRecognition({ kind: "photo", file });
                   event.target.value = "";
                 }}
               />
@@ -912,6 +1132,7 @@ export default function App() {
                 selected={focus === 0}
                 editing={manualEditingField === 0}
                 onChange={(event) => setManualName(event.target.value)}
+                maxLength={200}
                 onSelect={() => setFocus(0)}
                 onEditingChange={(editing) => {
                   if (editing) enterManualInputMode(0);
@@ -939,31 +1160,71 @@ export default function App() {
           ),
         };
 
-      case SCREEN.RECOGNIZING:
+      case SCREEN.RECOGNIZING: {
+        const failed = recognitionStatus === "error";
         return {
           title: t("add.recognizingTitle"),
           count: 0,
-          left: "",
-          right: t("common.cancel"),
+          left: failed ? t("common.retry") : "",
+          right: t(failed ? "common.back" : "common.cancel"),
+          onLeft: failed ? retryRecognition : undefined,
+          onEnter: failed ? retryRecognition : undefined,
           content: (
-            <div className="processing" aria-live="polite">
-              <p className="prompt">{t("add.recognizing")}</p>
-              <div className="progress" aria-label={t("add.recognizingTitle")}>
-                <span />
-              </div>
-              <p className="helper">
-                {uploadedName || manualName || t("add.recognizingHelp")}
+            <div
+              className="processing"
+              aria-live="polite"
+              role={failed ? "alert" : "status"}
+            >
+              <p className="prompt">
+                {failed ? t("add.recognitionFailed") : t("add.recognizing")}
+              </p>
+              {!failed && (
+                <div
+                  className="progress"
+                  aria-label={t("add.recognizingTitle")}
+                >
+                  <span />
+                </div>
+              )}
+              <p className={`helper${failed ? " input-error" : ""}`}>
+                {failed
+                  ? recognitionError
+                  : uploadedName || manualName || t("add.recognizingHelp")}
               </p>
             </div>
           ),
         };
+      }
 
       case SCREEN.MATCHES: {
         const activateMatch = () => {
-          const candidate = medicineCandidates[focus];
+          const candidate = localizedCandidates[focus];
           if (candidate) {
-            setSavedManualMedicine(null);
-            setSelectedReminderTimes([]);
+            const existingMedicine = userMedicines.find(
+              (medicine) =>
+                medicine.catalogRecordId === candidate.recordId,
+            );
+            const medicine = {
+              ...existingMedicine,
+              id:
+                existingMedicine?.id ||
+                `catalog-${candidate.recordId}`,
+              isCustom: true,
+              isCatalog: true,
+              catalogRecordId: candidate.recordId,
+              recordId: candidate.recordId,
+              sourceRecord: candidate.sourceRecord,
+              customName: existingMedicine?.customName || candidate.name,
+              strength:
+                existingMedicine?.strength || candidate.strength || "",
+              customDirections:
+                existingMedicine?.customDirections || manualDirections.trim(),
+              reminders: existingMedicine?.reminders || [],
+            };
+
+            setSavedManualMedicine(medicine);
+            setSelectedMedicine(medicine);
+            setSelectedReminderTimes(medicine.reminders);
             setDecision(0);
             setSelectedCandidate(candidate);
             navigate(SCREEN.DAILY);
@@ -974,21 +1235,26 @@ export default function App() {
 
         return {
           title: t("add.matchesTitle"),
-          count: medicineCandidates.length + 1,
-          left: t("common.confirm"),
+          count: localizedCandidates.length + 1,
+          left: localizedCandidates.length
+            ? t("common.confirm")
+            : t("common.retry"),
           right: t("common.back"),
+          onLeft: localizedCandidates.length
+            ? undefined
+            : retryRecognition,
           onEnter: activateMatch,
           onNumber: (number) => {
-            if (number >= 1 && number <= medicineCandidates.length + 1)
+            if (number >= 1 && number <= localizedCandidates.length + 1)
               setFocus(number - 1);
           },
           onArrowLeft: () =>
             setFocus((current) =>
-              clamp(current - 1, 0, medicineCandidates.length),
+              clamp(current - 1, 0, localizedCandidates.length),
             ),
           onArrowRight: () =>
             setFocus((current) =>
-              clamp(current + 1, 0, medicineCandidates.length),
+              clamp(current + 1, 0, localizedCandidates.length),
             ),
           onArrowUp: () => scrollMatchCard(-1),
           onArrowDown: () => scrollMatchCard(1),
@@ -1004,7 +1270,11 @@ export default function App() {
                 sideEffects: t("matchCard.sideEffects"),
                 indications: t("matchCard.indications"),
                 manualTitle: t("matchCard.manualTitle"),
-                manualHelp: t("matchCard.manualHelp"),
+                manualHelp: t(
+                  localizedCandidates.length
+                    ? "matchCard.manualHelp"
+                    : "matchCard.noMatchesManualHelp",
+                ),
               }}
             />
           ),
@@ -1140,7 +1410,8 @@ export default function App() {
               <FeedbackCard title={t("add.added")}>
                 <span>
                   {savedManualMedicine?.customName ||
-                    t(`candidates.${selectedCandidate.id}`)}
+                    selectedCandidate?.name ||
+                    t("medicines.manualEntry")}
                 </span>
                 {savedManualMedicine?.customDirections && (
                   <small>{savedManualMedicine.customDirections}</small>
@@ -1477,9 +1748,13 @@ export default function App() {
           else if (focus === 2) archiveSelectedMedicine();
           else openDeleteMedicine();
         };
-        const medicineDetail = selectedMedicine.isCustom
-          ? t("medicines.manualEntry")
-          : selectedMedicine.strength;
+        const medicineDetail = selectedMedicine.isCatalog
+          ? selectedMedicine.strength ||
+            selectedMedicine.sourceRecord?.licenseNumber ||
+            t("medicines.catalogEntry")
+          : selectedMedicine.isCustom
+            ? t("medicines.manualEntry")
+            : selectedMedicine.strength;
         const directions =
           medicineDirections(selectedMedicine) || t("medicines.noDirections");
         return {
@@ -1882,6 +2157,7 @@ export default function App() {
 
           const record = records[index - 1];
           if (record) {
+            setChatRecognitionText("");
             setChatMedicine(record);
             navigate(SCREEN.MEDICINE_CHAT_CONTEXT, index);
           }
@@ -1919,7 +2195,10 @@ export default function App() {
                   editing={chatEditingField === "medicine-search"}
                   disabled={chatSearching}
                   maxLength={200}
-                  onChange={(event) => setChatSearchQuery(event.target.value)}
+                  onChange={(event) => {
+                    setChatSearchQuery(event.target.value);
+                    setChatSearchError("");
+                  }}
                   onSelect={() => setFocus(0)}
                   onEditingChange={(editing) => {
                     if (editing) enterChatInputMode("medicine-search");
@@ -1929,13 +2208,20 @@ export default function App() {
                 />
               </form>
               {chatSearching && (
-                <p className="visually-hidden" role="status">
+                <p className="chat-search-status" role="status">
                   {t("chat.searching")}
                 </p>
               )}
+              {chatSearchError && (
+                <p className="chat-search-status input-error" role="alert">
+                  {chatSearchError}
+                </p>
+              )}
               {chatSearchResult && (
-                <p className="visually-hidden" aria-live="polite">
-                  {t("chat.results", { count: chatSearchResult.total })}
+                <p className="chat-search-status" aria-live="polite">
+                  {chatSearchResult.total
+                    ? t("chat.results", { count: chatSearchResult.total })
+                    : t("chat.noResults")}
                 </p>
               )}
               <div className="medicine-list chat-medicine-results">
@@ -1959,6 +2245,7 @@ export default function App() {
         const activateBagMedicine = (index = focus) => {
           const candidate = chatBagCandidates[index];
           if (!candidate) return;
+          setChatRecognitionText("");
           setChatMedicine({
             ...candidate.sourceMedicine,
             displayName: candidate.name,
@@ -2078,8 +2365,8 @@ export default function App() {
           onLeft: () => medicineChatRef.current?.send(),
           onEnter: () => medicineChatRef.current?.activate(),
           onInputKey: () => medicineChatRef.current?.activate(),
-          onArrowUp: () => medicineChatRef.current?.scroll(-1),
-          onArrowDown: () => medicineChatRef.current?.scroll(1),
+          onArrowUp: () => medicineChatRef.current?.move(-1),
+          onArrowDown: () => medicineChatRef.current?.move(1),
           content: (
             <div className="medicine-chat-screen">
               <MedicineChat

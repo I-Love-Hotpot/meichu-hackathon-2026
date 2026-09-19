@@ -88,6 +88,30 @@ test("not found and ambiguous matches never call Gemini, even without an API key
   }
 });
 
+test("possible emergencies bypass catalog and provider dependencies", async () => {
+  for (const message of [
+    "I overdosed and cannot breathe",
+    "我好像吃藥過量，現在呼吸困難",
+  ]) {
+    const result = await askMedicine(
+      { message },
+      {
+        env: {},
+        fetchImpl: () => {
+          throw new Error("must not call provider");
+        },
+        translateFetchImpl: () => {
+          throw new Error("must not call translation");
+        },
+      },
+    );
+    assert.equal(result.ok, true);
+    assert.equal(result.model, null);
+    assert.equal(result.sources.length, 0);
+    assert.match(result.reply.answer, /emergency service now/i);
+  }
+});
+
 test("Gemini gets only the selected source and cannot supply replacement source records", async () => {
   const answer = { answer: "The dataset lists the color as brown.", warnings: [], followUpQuestions: [] };
   const result = await askMedicine({ message: "What color is it?", selectedMedicineId: encodeRecordId(id) }, {

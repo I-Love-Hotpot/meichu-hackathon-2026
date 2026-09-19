@@ -24,8 +24,36 @@ Follow the JSON schema. Put relevant cautions in warnings and at most three clar
 
 const swagger = JSON.parse(readFileSync(new URL("../../api-docs/swagger.json", import.meta.url), "utf8"));
 const answerSchema = swagger.components.schemas.MedicineAnswer;
+const emergencyPattern =
+  /\b(?:overdos(?:e|ed|ing)|took too much|cannot breathe|can't breathe|difficulty breathing|trouble breathing|shortness of breath|unconscious|unresponsive|passed out|anaphylaxis|severe allergic reaction)\b|過量|吃太多|多吃(?:了)?藥|呼吸困難|無法呼吸|喘不過氣|失去意識|昏迷|叫不醒|嚴重過敏|過敏性休克/iu;
+
+function emergencyResponse(message) {
+  if (!emergencyPattern.test(message)) return null;
+  return {
+    ok: true,
+    model: null,
+    reply: {
+      answer:
+        "This may be a medical emergency. Call your local emergency service now and do not wait for an AI response.",
+      warnings: [
+        "If the person is unconscious or having trouble breathing, follow the emergency dispatcher's instructions immediately.",
+      ],
+      followUpQuestions: [],
+    },
+    disclaimer: DISCLAIMER,
+    sources: [],
+    catalog: {
+      fileName: "42_2.csv",
+      recordCount: 0,
+      matchedCount: 0,
+      status: "not_found",
+    },
+  };
+}
 
 export async function askMedicine({ message, history = [], recognition, selectedMedicineId }, { fetchImpl = fetch, translateFetchImpl = fetch, env = process.env } = {}) {
+  const emergency = emergencyResponse(message);
+  if (emergency) return emergency;
   const rawContext = resolveMedicineContext({ message, history, recognition, selectedMedicineId: decodeRecordId(selectedMedicineId) }, env);
   const context = { ...rawContext, sources: await translateMedicineRecords(rawContext.sources, { env, fetchImpl: translateFetchImpl }) };
   if (context.catalog.status !== "matched") {
