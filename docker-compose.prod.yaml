@@ -45,4 +45,3 @@ networks:
     external: true
   medicine-inference:
     external: true
-    name: medicine-inference-net
