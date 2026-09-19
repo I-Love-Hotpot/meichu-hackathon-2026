@@ -51,7 +51,7 @@
     "/api/sms/test": {
       "post": {
         "summary": "Send a test SMS",
-        "description": "Temporary endpoint. It is registered only when ENABLE_TEST_SMS_ENDPOINT=true.",
+        "description": "Temporary endpoint. It is registered only when ENABLE_TEST_SMS_ENDPOINT=true. The Twilio account is a trial account, so it always sends the predefined `sms_appointment_reminders` template body; a custom `body` is not accepted.",
         "operationId": "sendTestSms",
         "x-enabled-by": "ENABLE_TEST_SMS_ENDPOINT=true",
         "requestBody": {
@@ -629,19 +629,15 @@
       "TestSmsRequest": {
         "type": "object",
         "required": [
-          "to",
-          "body"
+          "to"
         ],
         "properties": {
           "to": {
             "type": "string",
             "example": "+886912345678"
-          },
-          "body": {
-            "type": "string",
-            "example": "This is a test SMS"
           }
-        }
+        },
+        "description": "The Twilio trial account always sends the predefined `sms_appointment_reminders` template body; a custom `body` field is not accepted."
       },
       "TestSmsResponse": {
         "type": "object",

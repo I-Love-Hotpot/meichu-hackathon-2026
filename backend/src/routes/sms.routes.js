@@ -6,10 +6,12 @@ export default async function smsRoutes(app, options = {}) {
   }
 
   app.post("/api/sms/test", async (request, reply) => {
-    const { to, body } = request.body || {};
+    const { to } = request.body || {};
 
     try {
-      const message = await sendSms({ to, body });
+      // The Twilio account is a trial account: it can only send the
+      // predefined template body, so a custom `body` is not accepted here.
+      const message = await sendSms({ to });
 
       return {
         ok: true,

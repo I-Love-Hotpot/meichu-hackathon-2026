@@ -192,15 +192,12 @@ Import `sendSms` from `src/services/twilio.service.js` in any backend service:
 ```js
 import { sendSms } from "./services/twilio.service.js";
 
-const message = await sendSms({
-	to: "+886912345678",
-	body: "Your verification code is 123456",
-});
+const message = await sendSms({ to: "+886912345678" });
 
 console.log(message.sid);
 ```
 
-`sendSms` sends plain text only and returns the Twilio message object. It throws a configuration error when the Twilio environment variables are missing and a validation error when `to` or `body` is empty.
+The Twilio account currently in use is a **trial account**, which can only send SMS using a predefined template as the message body (`sms_appointment_reminders`); any other free-form text is rejected with `Invalid template name.`. `sendSms` therefore defaults `body` to that template and callers should not override it until the account is upgraded. `sendSms` returns the Twilio message object and throws a configuration error when the Twilio environment variables are missing and a validation error when `to` is empty.
 
 ## Temporary SMS test endpoint
 
@@ -209,7 +206,7 @@ Set `ENABLE_TEST_SMS_ENDPOINT=true`, restart the backend, and call:
 ```bash
 curl -X POST http://localhost:3001/api/sms/test \
 	-H 'Content-Type: application/json' \
-	-d '{"to":"+886912345678","body":"This is a test SMS"}'
+	-d '{"to":"+886912345678"}'
 ```
 
-The endpoint is disabled by default and should not be enabled in production. It returns the Twilio message `sid` and status when the message is accepted.
+The endpoint always sends the predefined `sms_appointment_reminders` template body (trial account restriction) and does not accept a custom `body`. It is disabled by default and should not be enabled in production. It returns the Twilio message `sid` and status when the message is accepted.
