@@ -1,0 +1,14 @@
+**/__pycache__/
+**/*.py[cod]
+.ultralytics/
+.venv/
+outputs/
+demo/
+training/
+tests/
+e2e_results/
+examples/
+models/ocr/
+models/cnn/mobilenet_v3_small-047dcff4.pth
+models/cnn/pill_overfit_classifier.pt
+*.md

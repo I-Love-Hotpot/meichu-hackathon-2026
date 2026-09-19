@@ -60,7 +60,11 @@ The interactive Swagger UI is available at `http://localhost:3001/api-docs`.
 
 ## Look up a medicine by license number
 
-`GET /api/medicine` queries the `medicines` database table using the complete `license_number`. It returns the original stored values, with no translation or Gemini request. Leading and trailing whitespace in the query is ignored. If duplicate license identifiers exist, the row with the lowest `id` is returned.
+`GET /api/medicine` queries the `medicines` database table using the complete
+`license_number`. It returns every column from the matching database row, with
+no translation or Gemini request. Leading and trailing whitespace in the query
+is ignored. If duplicate license identifiers exist, the row with the lowest
+`id` is returned.
 
 ```bash
 curl --get http://localhost:3001/api/medicine \
@@ -76,17 +80,24 @@ curl --get http://localhost:3001/api/medicine \
     "chinese_name": "建功丸",
     "english_name": "CHENG KONG PILL",
     "shape": "其他",
+    "dosage_form": "",
     "color": "棕",
+    "odor": "",
     "score_line": "無",
     "size": "8",
     "imprint_1": "",
     "imprint_2": "",
-    "image_url": "https://mcp.fda.gov.tw/insert/shapeImg/89db57ae-5c85-47b8-9d74-351ecad719e6?c=o"
+    "image_url": "https://mcp.fda.gov.tw/insert/shapeImg/89db57ae-5c85-47b8-9d74-351ecad719e6?c=o",
+    "created_at": "2026-09-19T16:58:24.000Z"
   }
 }
 ```
 
-`id` is the database record number; `score_line` is the pill's score line (切線／刻痕). Missing values remain empty strings or `null`, as stored in MariaDB. `size` remains a string with no assumed unit. Multiple values or image links retain the source's `;;;` separator.
+`id` is the database record number; `score_line` is the pill's score line
+(切線／刻痕). Missing values remain empty strings or `null`, as stored in
+MariaDB. `size` remains a string with no assumed unit. Multiple values or image
+links retain the source's `;;;` separator. `created_at` is serialized as an ISO
+8601 timestamp in JSON.
 
 Errors use `{ "ok": false, "error": "message" }`: 400 for a missing, blank, repeated, or oversized license number (maximum 255 characters), or unexpected query parameters; 404 for no matching record; 503 for database connection/query failures. No database credentials or SQL details are returned.
 
@@ -119,20 +130,21 @@ curl http://localhost:3001/api/medicine/recognize \
   --data-binary '@medicine.jpg'
 ```
 
-The separate `pill-inference` container loads `pill_detector.pt` once at startup,
-detects the pill, analyzes color and shape, and returns only
-`{ "pill_id": [...] }`, containing up to three complete license numbers. The
-Node backend forwards the image over the private Docker network and looks up each ID in MariaDB using the same
-repository as `GET /api/medicine`. The response contains frontend-compatible
-records, the raw MariaDB lookup results in `medicines`, and normalized local
-pipeline details in `inference`. A successful request may return empty arrays
-when no pill or candidate is found.
+The separate `pill-inference` container loads `pill_detector.pt` and
+`pill_classifier.pt` once at startup, detects and crops the pill with YOLO,
+classifies it with MobileNetV3, and returns only
+`{ "pill_id": [...] }`, containing up to three six-digit numeric IDs. The Node
+backend forwards the image over the private Docker network and looks up each ID
+against the numeric portion of `license_number`. The response contains
+frontend-compatible `records`, complete `SELECT *` MariaDB rows in `medicines`,
+and the original numeric IDs in `pill_id` and `inference`. A successful request
+may return empty arrays when no pill or candidate is found.
 
 The inference container writes the upload to a private temporary directory only
 for the duration of inference and removes it afterward. The image is not sent to Gemini,
 Google Translation, or another external recognition provider.
 
-PyTorch, Ultralytics, OpenCV, the Python source, model, and inference CSV exist
+PyTorch, Ultralytics, OpenCV, the Python source, models, and inference CSV exist
 only in the inference image. The Node backend image contains no Python or
 PyTorch dependencies.
 

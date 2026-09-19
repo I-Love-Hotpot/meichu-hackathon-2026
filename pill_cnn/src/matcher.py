@@ -44,9 +44,13 @@ def prepare_database(dataframe):
         return "其他"
 
     licenses = dataframe["許可證字號"].astype(str).str.strip()
+    numeric_ids = licenses.map(lambda license_id: (re.findall(r"\d+", license_id) or [license_id])[-1].zfill(6))
+    numeric_counts = numeric_ids.value_counts()
+    output_ids = [numeric_id if numeric_counts[numeric_id] == 1 else license_id for license_id, numeric_id in zip(licenses, numeric_ids)]
+
     normalized = pd.DataFrame({
         "用量排序": range(1, len(dataframe) + 1),
-        "批價碼": licenses,
+        "批價碼": output_ids,
         "學名": dataframe["中文品名"].fillna(dataframe.get("英文品名", "")).astype(str).str.strip(),
         "文字": [f"F:{text(front)}|B:{text(back)}" for front, back in zip(dataframe["標註一"], dataframe["標註二"])],
         "顏色": dataframe["顏色"].map(colors),

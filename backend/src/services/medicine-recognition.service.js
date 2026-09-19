@@ -71,10 +71,10 @@ async function callInferenceService(image, mediaType, { env, fetchImpl }) {
   if (!payload || Object.keys(payload).length !== 1
     || !Array.isArray(payload.pill_id)
     || payload.pill_id.length > 3
-    || payload.pill_id.some((id) => typeof id !== "string" || !id.trim() || id.trim().length > 255)) {
+    || payload.pill_id.some((id) => typeof id !== "string" || !/^\d{6}$/.test(id))) {
     throw new MedicineChatError(502, "The medicine recognizer returned invalid pill IDs.");
   }
-  return payload.pill_id.map((id) => id.trim());
+  return payload.pill_id;
 }
 
 function toClientRecord(row) {
@@ -84,9 +84,9 @@ function toClientRecord(row) {
     displayName: row.english_name || row.chinese_name || row.license_number,
     englishName: row.english_name || "",
     shape: row.shape || "",
-    dosageForm: "",
+    dosageForm: row.dosage_form || "",
     color: row.color || "",
-    odor: "",
+    odor: row.odor || "",
     scoreLine: row.score_line || "",
     size: row.size || "",
     imprint1: row.imprint_1 || "",
@@ -116,17 +116,14 @@ export async function recognizeMedicineImage(
   const ownRepository = repository ? null : createMedicineRepository();
   const database = repository || ownRepository;
   try {
-    const medicines = await Promise.all(
-      pillIds.map(async (pillId) => ({
-        pill_id: pillId,
-        medicine: await database.findByLicenseNumber(pillId),
-      })),
+    const matches = await Promise.all(
+      pillIds.map((pillId) => database.findAllByPillId(pillId)),
     );
-    const records = medicines
-      .filter(({ medicine }) => medicine)
-      .map(({ medicine }) => toClientRecord(medicine));
+    const medicines = matches.flat();
+    const records = medicines.map(toClientRecord);
     return {
       ok: true,
+      pill_id: pillIds,
       model: "pill_detector.pt",
       recognition: { text: "", medications: [], pills: [] },
       matchStrategy: pillIds.length ? "appearance" : "none",

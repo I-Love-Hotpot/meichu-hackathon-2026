@@ -3,11 +3,14 @@ model:
   device: cpu
   image_size: 640
   confidence_threshold: 0.25
-  low_confidence_threshold: 0.10
+  low_confidence_threshold: 0.01
   iou_threshold: 0.7
 
 matching:
   top_k: 3
 
+classifier:
+  model_weights: models/cnn/pill_classifier.pt
+
 database:
-  path: ../resources/42_2.csv
+  path: database/42_2.csv

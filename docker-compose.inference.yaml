@@ -1,14 +1,21 @@
+name: meichu-pill-inference
+
 services:
   pill-inference:
     build:
-      context: ./backend
-      dockerfile: pill_inference_package/Dockerfile
-    image: pill-inference
+      context: ./pill_cnn
+      dockerfile: Dockerfile
+    image: meichu-pill-inference:local
+    init: true
     restart: unless-stopped
     environment:
       PORT: 8000
     ports:
       - "127.0.0.1:8000:8000"
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
     networks:
       - medicine-inference
     healthcheck:

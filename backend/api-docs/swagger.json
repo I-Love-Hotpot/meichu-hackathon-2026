@@ -357,7 +357,7 @@
         ],
         "summary": "Recognize medicine candidates with the local model",
         "operationId": "recognizeMedicineImage",
-        "description": "Accepts one raw JPEG, PNG, or WebP image of at most 5 MiB. The backend forwards it to the separate pill-inference container over the private Docker network. That service loads pill_detector.pt and returns only a pill_id array containing up to three complete license numbers. Each ID is then looked up in MariaDB using the same repository as GET /api/medicine.",
+        "description": "Accepts one raw JPEG, PNG, or WebP image of at most 5 MiB. The backend forwards it to the separate pill-inference container over the private Docker network. That service returns only a pill_id array containing up to three six-digit numeric classifier IDs. The backend uses each ID to query MariaDB and returns every column from each matching medicines row in medicines.",
         "requestBody": {
           "required": true,
           "content": {
@@ -465,7 +465,7 @@
         ],
         "summary": "依許可證字號查詢藥品資訊（MariaDB）",
         "operationId": "getMedicineByLicenseNumber",
-        "description": "提供完整的 license_number，從 MariaDB 的 medicines 資料表查詢對應藥品。回傳資料表編號 id、許可證字號 license_number、中英文藥名、形狀、顏色、切線／刻痕 score_line、尺寸 size、標註 imprint_1 與 imprint_2，以及圖片連結 image_url。\n\n使用完整字號比對，不支援部分字號搜尋；輸入前後空白會移除。資料保留資料庫原始內容，不呼叫翻譯或 Gemini。空字串與 null 代表未提供資料，尺寸未註明單位，多個值或圖片連結保留 ;;; 分隔符號。若資料庫有重複許可證字號，回傳 id 最小的一筆。",
+        "description": "提供完整的 license_number，從 MariaDB 的 medicines 資料表查詢對應藥品，並回傳該資料列的所有欄位。\n\n使用完整字號比對，不支援部分字號搜尋；輸入前後空白會移除。資料保留資料庫原始內容，不呼叫翻譯或 Gemini。空字串與 null 代表未提供資料，尺寸未註明單位，多個值或圖片連結保留 ;;; 分隔符號。若資料庫有重複許可證字號，回傳 id 最小的一筆。",
         "parameters": [
           {
             "name": "license_number",
@@ -484,7 +484,7 @@
         ],
         "responses": {
           "200": {
-            "description": "查詢成功，medicine 包含對應藥品的 11 個欄位。",
+            "description": "查詢成功，medicine 包含 MariaDB 對應資料列的所有欄位。",
             "content": {
               "application/json": {
                 "schema": {
@@ -498,12 +498,15 @@
                     "chinese_name": "建功丸",
                     "english_name": "CHENG KONG PILL",
                     "shape": "其他",
+                    "dosage_form": "",
                     "color": "棕",
+                    "odor": "",
                     "score_line": "無",
                     "size": "8",
                     "imprint_1": "",
                     "imprint_2": "",
-                    "image_url": "https://mcp.fda.gov.tw/insert/shapeImg/89db57ae-5c85-47b8-9d74-351ecad719e6?c=o"
+                    "image_url": "https://mcp.fda.gov.tw/insert/shapeImg/89db57ae-5c85-47b8-9d74-351ecad719e6?c=o",
+                    "created_at": "2026-09-19T16:58:24.000Z"
                   }
                 }
               }
@@ -820,6 +823,7 @@
         "additionalProperties": false,
         "required": [
           "ok",
+          "pill_id",
           "model",
           "reply",
           "disclaimer",
@@ -1018,8 +1022,10 @@
           "query",
           "source",
           "records",
+          "medicines",
           "total",
-          "recordCount"
+          "recordCount",
+          "inference"
           ,
           "medicines",
           "inference"
@@ -1098,13 +1104,16 @@
         "additionalProperties": false,
         "required": [
           "ok",
+          "pill_id",
           "model",
           "recognition",
           "matchStrategy",
           "source",
           "records",
+          "medicines",
           "total",
-          "recordCount"
+          "recordCount",
+          "inference"
         ],
         "properties": {
           "ok": {
@@ -1112,6 +1121,15 @@
             "enum": [
               true
             ]
+          },
+          "pill_id": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9]{6}$"
+            },
+            "description": "Six-digit numeric IDs returned by the classifier."
           },
           "model": {
             "type": "string",
@@ -1126,7 +1144,7 @@
               "appearance",
               "none"
             ],
-            "description": "appearance when the local detector returned candidate license numbers; none when no candidate was found."
+            "description": "appearance when the local classifier returned numeric pill IDs; none when no candidate was found."
           },
           "source": {
             "type": "string",
@@ -1136,7 +1154,6 @@
           },
           "records": {
             "type": "array",
-            "maxItems": 8,
             "items": {
               "$ref": "#/components/schemas/MedicineRecord"
             }
@@ -1144,7 +1161,7 @@
           "total": {
             "type": "integer",
             "minimum": 0,
-            "description": "Full deterministic candidate count before the eight-record response limit."
+            "description": "Number of complete MariaDB rows returned."
           },
           "recordCount": {
             "type": "integer",
@@ -1153,27 +1170,10 @@
           },
           "medicines": {
             "type": "array",
-            "maxItems": 3,
             "items": {
-              "type": "object",
-              "required": [
-                "pill_id",
-                "medicine"
-              ],
-              "properties": {
-                "pill_id": {
-                  "type": "string"
-                },
-                "medicine": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/MedicineDatabaseRecord"
-                    }
-                  ],
-                  "nullable": true
-                }
-              }
-            }
+              "$ref": "#/components/schemas/MedicineDatabaseRecord"
+            },
+            "description": "Complete MariaDB rows matching the numeric classifier IDs."
           },
           "inference": {
             "type": "object",
@@ -1186,7 +1186,8 @@
                 "type": "array",
                 "maxItems": 3,
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "pattern": "^[0-9]{6}$"
                 }
               }
             },
@@ -1212,19 +1213,22 @@
       },
       "MedicineDatabaseRecord": {
         "type": "object",
-        "additionalProperties": false,
+        "additionalProperties": true,
         "required": [
           "id",
           "license_number",
           "chinese_name",
           "english_name",
           "shape",
+          "dosage_form",
           "color",
+          "odor",
           "score_line",
           "size",
           "imprint_1",
           "imprint_2",
-          "image_url"
+          "image_url",
+          "created_at"
         ],
         "properties": {
           "id": {
@@ -1255,11 +1259,23 @@
             "description": "形狀。",
             "example": "其他"
           },
+          "dosage_form": {
+            "type": "string",
+            "nullable": true,
+            "description": "特殊劑型。",
+            "example": ""
+          },
           "color": {
             "type": "string",
             "nullable": true,
             "description": "顏色。",
             "example": "棕"
+          },
+          "odor": {
+            "type": "string",
+            "nullable": true,
+            "description": "特殊氣味。",
+            "example": ""
           },
           "score_line": {
             "type": "string",
@@ -1290,6 +1306,12 @@
             "nullable": true,
             "description": "圖片連結；多個連結保留來源的 ;;; 分隔符號。",
             "example": "https://mcp.fda.gov.tw/insert/shapeImg/89db57ae-5c85-47b8-9d74-351ecad719e6?c=o"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "資料列建立時間。",
+            "example": "2026-09-19T16:58:24.000Z"
           }
         },
         "description": "MariaDB medicines 資料表中的藥品原始資訊；欄位名稱與資料庫一致。"

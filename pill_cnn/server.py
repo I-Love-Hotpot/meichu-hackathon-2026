@@ -1,4 +1,4 @@
-"""Small internal HTTP service for the local pill model."""
+"""Internal HTTP API for the local pill inference pipeline."""
 
 import json
 import os
@@ -13,15 +13,20 @@ from src.errors import DatabaseLoadError, InferenceError, InputImageError, Model
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 MEDIA_TYPES = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
+    "image/jpeg": (".jpg", lambda value: value.startswith(b"\xff\xd8\xff")),
+    "image/png": (".png", lambda value: value.startswith(b"\x89PNG\r\n\x1a\n")),
+    "image/webp": (
+        ".webp",
+        lambda value: len(value) >= 12
+        and value.startswith(b"RIFF")
+        and value[8:12] == b"WEBP",
+    ),
 }
 INFERENCE_LOCK = threading.Lock()
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "PillInference/1.0"
+    server_version = "PillInference/2.0"
 
     def _json(self, status, payload):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -32,15 +37,16 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        if self.path != "/health":
-            self._json(404, {"error": "Not found"})
+        if self.path == "/health":
+            self._json(200, {"ok": True})
             return
-        self._json(200, {"ok": True})
+        self._json(404, {"error": "Not found"})
 
     def do_POST(self):
         if self.path != "/recognize":
             self._json(404, {"error": "Not found"})
             return
+
         media_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
         if media_type not in MEDIA_TYPES:
             self._json(415, {"error": "Use JPEG, PNG, or WebP."})
@@ -57,9 +63,14 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         image = self.rfile.read(content_length)
+        suffix, matches_type = MEDIA_TYPES[media_type]
+        if len(image) != content_length or not matches_type(image):
+            self._json(400, {"error": "Image bytes do not match the declared format."})
+            return
+
         try:
             with tempfile.TemporaryDirectory(prefix="pill-inference-") as directory:
-                image_path = Path(directory) / f"image{MEDIA_TYPES[media_type]}"
+                image_path = Path(directory) / f"image{suffix}"
                 image_path.write_bytes(image)
                 with INFERENCE_LOCK:
                     result = predict(image_path)
@@ -78,9 +89,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    pipeline = get_pipeline()
-    pipeline._load_database()
-    pipeline.detector.load()
+    get_pipeline().warm_up()
     port = int(os.environ.get("PORT", "8000"))
     ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
 

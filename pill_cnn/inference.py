@@ -1,4 +1,4 @@
-"""CLI and Python API returning only Top-3 pill IDs."""
+"""CLI and Python API for YOLO + MobileNet Top-3 pill inference."""
 
 import argparse
 import json
@@ -7,9 +7,11 @@ import sys
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
-ULTRALYTICS_CONFIG_DIR = PACKAGE_ROOT / ".ultralytics"
+ULTRALYTICS_CONFIG_DIR = Path(
+    os.environ.get("YOLO_CONFIG_DIR", PACKAGE_ROOT / ".ultralytics")
+)
 ULTRALYTICS_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-os.environ.setdefault("YOLO_CONFIG_DIR", str(ULTRALYTICS_CONFIG_DIR))
+os.environ["YOLO_CONFIG_DIR"] = str(ULTRALYTICS_CONFIG_DIR)
 
 from src.errors import DatabaseLoadError, InferenceError, InputImageError, ModelLoadError
 from src.pipeline import PillInferencePipeline
@@ -27,7 +29,7 @@ def get_pipeline(config_path=DEFAULT_CONFIG, weights=None):
 
 
 def predict(image_path, weights=None, config_path=DEFAULT_CONFIG):
-    """Return ``{"pill_id": [...]}`` with up to three full license numbers."""
+    """Return up to three six-digit classifier IDs."""
     return get_pipeline(config_path=config_path, weights=weights).predict(image_path)
 
 
@@ -50,10 +52,8 @@ def _batch_predict(pipeline, image_dir, output_dir, limit=None):
         try:
             result = pipeline.predict(image_path)
         except Exception as error:
-            result = {
-                "input_image": str(image_path.resolve()),
-                "pill_id": [],
-            }
+            print(f"inference error for {image_path}: {error}", file=sys.stderr)
+            result = {"pill_id": []}
         output_path = output_dir / image_path.stem / "prediction.json"
         _write_json(output_path, result)
         written.append(str(output_path))
@@ -61,7 +61,7 @@ def _batch_predict(pipeline, image_dir, output_dir, limit=None):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Top-3 pill inference using colour and shape only")
+    parser = argparse.ArgumentParser(description="Top-3 pill inference using YOLO and MobileNetV3")
     parser.add_argument("--image", help="Input image path")
     parser.add_argument("--output", default="outputs/prediction.json", help="Candidate JSON output path")
     parser.add_argument("--weights", help="Compatible YOLO detection weights override")

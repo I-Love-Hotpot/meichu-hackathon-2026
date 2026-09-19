@@ -12,12 +12,15 @@ const medicine = {
   chinese_name: '"福元"蘇打錠500毫克',
   english_name: 'SODIUM BICARBONATE TABLETS "F.Y."',
   shape: "圓形",
+  dosage_form: "",
   color: "白",
+  odor: "",
   score_line: "無",
   size: "8",
   imprint_1: "FY T061",
   imprint_2: "",
   image_url: "https://mcp.fda.gov.tw/insert/shapeImg/e67be591-893d-4f5b-b0f1-9bb7c38014e9?c=o",
+  created_at: "2026-09-19T16:58:24.000Z",
 };
 
 async function createApp(t, findByLicenseNumber) {
@@ -29,10 +32,10 @@ async function createApp(t, findByLicenseNumber) {
   return app;
 }
 
-test("license lookup returns only requested database fields and trims the query", async (t) => {
+test("license lookup returns the complete database row and trims the query", async (t) => {
   const app = await createApp(t, async (license) => {
     assert.equal(license, licenseNumber);
-    return { ...medicine, created_at: "2026-09-19", dosage_form: "internal field" };
+    return medicine;
   });
   const response = await app.inject({
     method: "GET", url: "/api/medicine", query: { license_number: ` ${licenseNumber} ` },
@@ -134,6 +137,24 @@ test("repository returns the selected database row and rejects invalid port conf
     await assert.rejects(invalid.findByLicenseNumber(licenseNumber), /DB_PORT/);
     await invalid.close();
   }
+});
+
+test("repository returns all complete rows matching a six-digit pill ID", async () => {
+  const repository = createMedicineRepository({
+    env: {},
+    createPool: () => ({
+      execute: async ({ sql }, values) => {
+        assert.match(sql, /SELECT \*/);
+        assert.match(sql, /LIKE CONCAT/);
+        assert.deepEqual(values, ["000075"]);
+        return [[medicine], []];
+      },
+      end: async () => {},
+    }),
+  });
+  assert.deepEqual(await repository.findAllByPillId("000075"), [medicine]);
+  await assert.rejects(repository.findAllByPillId("內衛成製字第000075號"), /pill ID/);
+  await repository.close();
 });
 
 test("Swagger publishes the database lookup and an example accepted by the route", async (t) => {
