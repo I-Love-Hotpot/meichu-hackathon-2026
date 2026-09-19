@@ -114,9 +114,10 @@
 
 .list-row > span:first-child {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .dense-list,
@@ -125,6 +126,32 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.dense-list {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.dense-list::-webkit-scrollbar {
+  display: none;
+}
+
+.medicine-chat-menu {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.medicine-chat-menu::-webkit-scrollbar {
+  display: none;
+}
+
+.chat-history-empty {
+  margin: auto 0;
+  color: var(--secondary);
+  text-align: center;
 }
 
 .dense-list .list-row {
@@ -213,11 +240,12 @@
 }
 
 .medicine-copy strong {
-  overflow: hidden;
+  overflow: visible;
+  overflow-wrap: anywhere;
   font-size: 15px;
   line-height: 20px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .medicine-copy small {
@@ -225,6 +253,8 @@
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .prompt,
@@ -359,6 +389,21 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.chat-search-form {
+  flex-shrink: 0;
+}
+
+.chat-selected-medicine {
+  margin: 0;
+  overflow: hidden;
+  color: var(--secondary);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .focusable-field {
@@ -841,13 +886,13 @@
 
   .medicine-list .medicine-row,
   .medicine-list .list-row {
-    height: 19px;
+    height: auto;
     min-height: 19px;
     padding: 1px 3px;
   }
 
   .medicine-list .medicine-copy small {
-    display: none;
+    display: block;
   }
 
   .medicine-list .list-row {
@@ -858,7 +903,7 @@
   .reminder-list .list-row,
   .medicine-detail-list .list-row,
   .medicine-detail-list .medicine-row {
-    height: 19px;
+    height: auto;
     min-height: 19px;
     padding: 1px 3px;
     font-size: 10px;
@@ -970,6 +1015,11 @@
 
   .manual-form {
     gap: 2px;
+  }
+
+  .chat-selected-medicine {
+    font-size: 8px;
+    line-height: 9px;
   }
 
   .focusable-field {
