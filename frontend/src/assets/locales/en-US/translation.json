@@ -183,11 +183,50 @@
   },
   "emergency": {
     "title": "Emergency info",
-    "help": "Help",
-    "cardTitle": "Medication emergency",
-    "allergy": "Allergy: ",
+    "medicationCategory": "Medication emergency",
+    "firstAidCategory": "First aid",
+    "cprCategory": "CPR / AED steps",
+    "medicationTitle": "Medication emergency",
+    "allergyLabel": "Allergy information",
     "allergyValue": "Penicillin",
-    "currentMedicine": "Current: Blood pressure med 10 mg"
+    "currentMedicationLabel": "Current medication",
+    "currentMedicine": "Blood pressure medicine 10 mg",
+    "medicationWarning": "Call 119 immediately for trouble breathing or swelling of the face or throat.",
+    "firstAidTitle": "First aid",
+    "chooseFirstAid": "Choose the first-aid information you need",
+    "woundTitle": "Basic wound care",
+    "woundSteps": {
+      "step1": "Make sure the area is safe and wash your hands; avoid direct contact with blood.",
+      "step2": "Apply continuous direct pressure with clean gauze to stop bleeding.",
+      "step3": "After bleeding stops, rinse with saline or clean drinking water.",
+      "step4": "Cover with a clean dressing, then wrap and secure it."
+    },
+    "woundWarning": "Call 119 for heavy bleeding, an embedded object, or bleeding that will not stop. Do not remove an embedded object.",
+    "pregnancyTitle": "Pregnancy discomfort",
+    "pregnancySteps": {
+      "step1": "Stop activity. Sit safely or lie on the left side and keep breathing freely.",
+      "step2": "Have someone stay with you, prepare your maternity record, and contact your maternity provider.",
+      "step3": "Do not take medicine on your own; follow instructions from 119 or medical staff."
+    },
+    "pregnancyWarning": "Call 119 now for heavy bleeding, broken waters, persistent or severe abdominal pain, trouble breathing, fainting, or seizures.",
+    "cprTitle": "Adult CPR / AED",
+    "nextStep": "Next",
+    "stepProgress": "Step {{current}} of {{total}}",
+    "cprWarning": "Adult quick guide only. Keep following instructions from 119 and the AED.",
+    "cprSteps": {
+      "step1Title": "Check safety and response",
+      "step1Body": "Make sure the scene is safe. Tap both shoulders and shout. If there is no response, continue.",
+      "step2Title": "Call 119 and get an AED",
+      "step2Body": "Shout for help. Tell a specific person to call 119 and bring an AED. Use speakerphone and do not hang up.",
+      "step3Title": "Check normal breathing",
+      "step3Body": "Watch for normal chest and abdominal movement. If there is no breathing or only gasping, start compressions now.",
+      "step4Title": "Give chest compressions",
+      "step4Body": "Stack the heels of your hands in the center of the chest and lock your elbows. For an adult, press 5–6 cm, allow full recoil, and minimize pauses.",
+      "step5Title": "Use the AED",
+      "step5Body": "Turn on the AED, expose the chest, and attach the pads. Make sure no one touches the person during analysis or shock.",
+      "step6Title": "Resume CPR immediately",
+      "step6Body": "Follow the AED and resume compressions. Continue until normal breathing returns, rescuers take over, or you cannot continue."
+    }
   },
   "template": {
     "about": "About",

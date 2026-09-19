@@ -436,6 +436,92 @@
   line-height: 22px;
 }
 
+.emergency-detail,
+.cpr-step {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.emergency-detail::-webkit-scrollbar,
+.cpr-step::-webkit-scrollbar {
+  display: none;
+}
+
+.emergency-detail p,
+.cpr-step p {
+  margin: 0;
+}
+
+.emergency-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 19px;
+}
+
+.emergency-detail ol {
+  margin: 0;
+  padding-left: 24px;
+}
+
+.emergency-detail li + li {
+  margin-top: 5px;
+}
+
+.emergency-detail__label {
+  color: var(--secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.emergency-result {
+  padding: 8px 10px;
+  border: 2px solid var(--danger);
+  border-radius: 8px;
+  color: #8f241e;
+  background: var(--danger-soft);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.emergency-warning {
+  padding: 6px 8px;
+  border-left: 4px solid var(--danger);
+  color: #8f241e;
+  background: var(--danger-soft);
+  font-weight: 700;
+}
+
+.cpr-step {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 15px;
+  line-height: 21px;
+}
+
+.cpr-step__progress {
+  color: var(--secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cpr-step > strong {
+  color: #8f241e;
+  font-size: 20px;
+  line-height: 25px;
+}
+
+.cpr-step__tempo {
+  color: var(--danger);
+  font-size: 22px;
+  font-weight: 900;
+  text-align: center;
+}
+
 .match-deck {
   width: 100%;
   height: 100%;
@@ -926,6 +1012,53 @@
     border-left-width: 3px;
     font-size: 10px;
     line-height: 13px;
+  }
+
+  .emergency-detail {
+    gap: 3px;
+    font-size: 9px;
+    line-height: 11px;
+  }
+
+  .emergency-detail ol {
+    padding-left: 15px;
+  }
+
+  .emergency-detail li + li {
+    margin-top: 2px;
+  }
+
+  .emergency-detail__label,
+  .cpr-step__progress {
+    font-size: 8px;
+    line-height: 9px;
+  }
+
+  .emergency-result {
+    padding: 3px 4px;
+    border-width: 1.5px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .emergency-warning {
+    padding: 3px 4px;
+    border-left-width: 3px;
+  }
+
+  .cpr-step {
+    gap: 4px;
+    font-size: 10px;
+    line-height: 13px;
+  }
+
+  .cpr-step > strong {
+    font-size: 14px;
+    line-height: 16px;
+  }
+
+  .cpr-step__tempo {
+    font-size: 15px;
   }
 
   .match-deck {
