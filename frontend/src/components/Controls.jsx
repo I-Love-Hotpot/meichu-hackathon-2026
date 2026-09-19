@@ -24,6 +24,11 @@ export function FocusableField({
   editing = false,
   multiline = false,
   required = false,
+  disabled = false,
+  maxLength,
+  rows,
+  focusId,
+  className = '',
   onSelect,
   onEditingChange,
   onChange,
@@ -54,9 +59,13 @@ export function FocusableField({
     onEditingChange(false)
   }
 
+  const syncValue = (event) => {
+    onChange?.(event)
+  }
+
   return (
     <div
-      className={`focusable-field${selected ? ' is-selected' : ''}${editing ? ' is-editing' : ''}`}
+      className={`focusable-field${className ? ` ${className}` : ''}${selected ? ' is-selected' : ''}${editing ? ' is-editing' : ''}`}
       aria-current={selected ? 'true' : undefined}
     >
       <label htmlFor={id}>{label}</label>
@@ -65,15 +74,28 @@ export function FocusableField({
         id={id}
         value={value}
         placeholder={placeholder}
-        readOnly={!editing}
         required={required}
+        disabled={disabled}
+        maxLength={maxLength}
+        rows={multiline ? rows : undefined}
+        data-chat-focus={focusId || undefined}
         tabIndex={editing ? 0 : -1}
-        onChange={onChange}
+        onInput={syncValue}
+        onChange={syncValue}
+        onCompositionEnd={syncValue}
         onClick={enterInputMode}
         onFocus={onSelect}
-        onBlur={() => onEditingChange(false)}
+        onBlur={(event) => {
+          syncValue(event)
+          onEditingChange(false)
+        }}
         onKeyDown={(event) => {
-          if (event.key !== 'Enter') return
+          if (
+            event.key !== 'Enter' ||
+            event.nativeEvent?.isComposing ||
+            event.keyCode === 229 ||
+            (multiline && event.shiftKey)
+          ) return
           event.preventDefault()
           event.stopPropagation()
           leaveInputMode()

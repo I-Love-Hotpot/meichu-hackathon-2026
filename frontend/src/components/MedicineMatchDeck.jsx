@@ -7,10 +7,11 @@ export default function MedicineMatchDeck({
   onActivate,
   scrollRef,
   labels,
+  includeManual = true,
 }) {
   const [canScrollDown, setCanScrollDown] = useState(false)
   const activeCandidate = candidates[index]
-  const cardCount = candidates.length + 1
+  const cardCount = candidates.length + (includeManual ? 1 : 0)
 
   const updateScrollHint = useCallback(() => {
     const element = scrollRef.current
@@ -44,29 +45,35 @@ export default function MedicineMatchDeck({
           {activeCandidate ? (
             <>
               <div className="match-card-scroll" ref={scrollRef} onScroll={updateScrollHint}>
-                <img src={activeCandidate.image} alt={activeCandidate.imageAlt} />
+                {activeCandidate.image && (
+                  <img src={activeCandidate.image} alt={activeCandidate.imageAlt || ''} />
+                )}
                 <div className="match-card-copy">
                   <span className="match-card-position">{index + 1} / {cardCount}</span>
                   <h2>{activeCandidate.genericName}</h2>
                   <dl>
-                    <dt>{labels.primaryEffect}</dt>
-                    <dd>{activeCandidate.primaryEffect}</dd>
-                    <dt>{labels.sideEffects}</dt>
-                    <dd>{activeCandidate.sideEffects}</dd>
-                    <dt>{labels.indications}</dt>
-                    <dd>{activeCandidate.indications}</dd>
+                    {(activeCandidate.details || [
+                      { label: labels.primaryEffect, value: activeCandidate.primaryEffect },
+                      { label: labels.sideEffects, value: activeCandidate.sideEffects },
+                      { label: labels.indications, value: activeCandidate.indications },
+                    ]).map((detail) => (
+                      <div key={detail.label}>
+                        <dt>{detail.label}</dt>
+                        <dd>{detail.value}</dd>
+                      </div>
+                    ))}
                   </dl>
                 </div>
               </div>
               {canScrollDown && <span className="match-scroll-hint" aria-hidden="true" />}
             </>
-          ) : (
+          ) : includeManual ? (
             <div className="match-manual-content">
               <span className="match-plus" aria-hidden="true">+</span>
               <strong>{labels.manualTitle}</strong>
               <small>{labels.manualHelp}</small>
             </div>
-          )}
+          ) : null}
         </article>
 
         {index < cardCount - 1 && <span className="match-card-peek match-card-peek--right" aria-hidden="true" />}
@@ -86,6 +93,9 @@ export default function MedicineMatchDeck({
               onClick={() => onChange(dotIndex)}
             />
           ))}
+          <span className="match-count" aria-hidden="true">
+            {index + 1} / {cardCount}
+          </span>
         </div>
         <span aria-hidden="true">›</span>
       </div>

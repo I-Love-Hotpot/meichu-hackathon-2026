@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "CloudPhone Widget Backend API",
-    "version": "v1.3.0",
+    "version": "v1.4.0",
     "description": "API for the backend of the custom CloudPhone widget."
   },
   "servers": [
@@ -51,7 +51,7 @@
     "/api/sms/test": {
       "post": {
         "summary": "Send a test SMS",
-        "description": "Temporary endpoint. It is registered only when ENABLE_TEST_SMS_ENDPOINT=true.",
+        "description": "Temporary endpoint. It is registered only when ENABLE_TEST_SMS_ENDPOINT=true. The Twilio account is a trial account, so it always sends the predefined `sms_appointment_reminders` template body; a custom `body` is not accepted.",
         "operationId": "sendTestSms",
         "x-enabled-by": "ENABLE_TEST_SMS_ENDPOINT=true",
         "requestBody": {
@@ -307,8 +307,38 @@
               }
             }
           },
+          "429": {
+            "description": "Translation API rate or quota limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Translation API connection or response error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "503": {
             "description": "CSV or Translation API is unavailable or invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Translation API timed out",
             "content": {
               "application/json": {
                 "schema": {
@@ -325,42 +355,48 @@
         "tags": [
           "Medicine"
         ],
-        "summary": "Recognize a medicine image with the local model",
-        "description": "Uploads one JPEG, PNG, or WebP image (maximum 10 MiB). The configured local recognizer returns up to three medicine license_number values; each is looked up in MariaDB using the same data source as GET /api/medicine.",
+        "summary": "Recognize medicine candidates with the local model",
         "operationId": "recognizeMedicineImage",
+        "description": "Accepts one raw JPEG, PNG, or WebP image of at most 5 MiB. The bundled Python pipeline loads pill_detector.pt, detects the pill, compares color and shape, and returns up to three complete license numbers. Each license number is then looked up in MariaDB using the same repository as GET /api/medicine.",
         "requestBody": {
           "required": true,
           "content": {
-            "multipart/form-data": {
+            "image/jpeg": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "image"
-                ],
-                "properties": {
-                  "image": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "JPEG, PNG, or WebP image; maximum 10 MiB."
-                  }
-                }
+                "type": "string",
+                "format": "binary",
+                "maxLength": 5242880
+              }
+            },
+            "image/png": {
+              "schema": {
+                "type": "string",
+                "format": "binary",
+                "maxLength": 5242880
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "type": "string",
+                "format": "binary",
+                "maxLength": 5242880
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Recognition completed. medicine is null when an ID is not present in MariaDB.",
+            "description": "Local-model candidates and their MariaDB medicine records",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MedicineRecognitionResponse"
+                  "$ref": "#/components/schemas/MedicineImageRecognitionResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "Missing or unsupported image upload.",
+            "description": "The image is empty or its bytes do not match the declared format",
             "content": {
               "application/json": {
                 "schema": {
@@ -370,7 +406,17 @@
             }
           },
           "413": {
-            "description": "Image exceeds 10 MiB.",
+            "description": "Image exceeds 5 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content type is not image/jpeg, image/png, or image/webp",
             "content": {
               "application/json": {
                 "schema": {
@@ -380,7 +426,7 @@
             }
           },
           "502": {
-            "description": "Recognizer failed or returned invalid output.",
+            "description": "The local recognizer failed or returned invalid output",
             "content": {
               "application/json": {
                 "schema": {
@@ -390,7 +436,7 @@
             }
           },
           "503": {
-            "description": "Recognizer or medicine database is unavailable.",
+            "description": "The local recognizer, model, CSV, or MariaDB is unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -400,7 +446,7 @@
             }
           },
           "504": {
-            "description": "Recognizer timed out.",
+            "description": "The local recognizer timed out",
             "content": {
               "application/json": {
                 "schema": {
@@ -563,19 +609,15 @@
       "TestSmsRequest": {
         "type": "object",
         "required": [
-          "to",
-          "body"
+          "to"
         ],
         "properties": {
           "to": {
             "type": "string",
             "example": "+886912345678"
-          },
-          "body": {
-            "type": "string",
-            "example": "This is a test SMS"
           }
-        }
+        },
+        "description": "The Twilio trial account always sends the predefined `sms_appointment_reminders` template body; a custom `body` field is not accepted."
       },
       "TestSmsResponse": {
         "type": "object",
@@ -729,7 +771,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 100,
-            "description": "The licenseNumber from a search result. The backend reloads the source record and does not accept client-supplied medicine fields. This takes priority over automatic matching."
+            "description": "The opaque recordId from a search or recognition result. The backend reloads the source record and does not accept client-supplied medicine fields. This takes priority over automatic matching."
           }
         }
       },
@@ -825,7 +867,7 @@
           },
           "licenseNumber": {
             "type": "string",
-            "description": "License identifier, translated for English display and used as the selected record ID."
+            "description": "License identifier translated for English display. Use recordId, not this display value, as selectedMedicineId."
           },
           "displayName": {
             "type": "string",
@@ -978,7 +1020,166 @@
           "records",
           "total",
           "recordCount"
+          ,
+          "medicines",
+          "inference"
         ]
+      },
+      "MedicineImageRecognitionEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text",
+          "medications",
+          "pills"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 6000,
+            "description": "Visible OCR text copied from the image; empty when no text is legible. This is unverified transcription, not confirmed medicine identity."
+          },
+          "medications": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Medicine name directly legible in the image. It is considered for matching only when it also occurs in text."
+                },
+                "strength": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "Strength directly legible near the medicine name; empty when none is legible."
+                }
+              }
+            }
+          },
+          "pills": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "imprint"
+              ],
+              "properties": {
+                "imprint": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "Characters directly visible on one pill side; empty when none are legible."
+                },
+                "color": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "Observed color, or empty when unclear; never sufficient for matching by itself."
+                },
+                "shape": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "Observed shape, or empty when unclear; never sufficient for matching by itself."
+                }
+              }
+            }
+          }
+        }
+      },
+      "MedicineImageRecognitionResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "model",
+          "recognition",
+          "matchStrategy",
+          "source",
+          "records",
+          "total",
+          "recordCount"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "model": {
+            "type": "string",
+            "description": "Local .pt model filename."
+          },
+          "recognition": {
+            "$ref": "#/components/schemas/MedicineImageRecognitionEvidence"
+          },
+          "matchStrategy": {
+            "type": "string",
+            "enum": [
+              "appearance",
+              "none"
+            ],
+            "description": "appearance when the local detector returned candidate license numbers; none when no candidate was found."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "MariaDB"
+            ]
+          },
+          "records": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "$ref": "#/components/schemas/MedicineRecord"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Full deterministic candidate count before the eight-record response limit."
+          },
+          "recordCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of candidate IDs returned by the local model."
+          },
+          "medicines": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "required": [
+                "license_number",
+                "medicine"
+              ],
+              "properties": {
+                "license_number": {
+                  "type": "string"
+                },
+                "medicine": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/MedicineDatabaseRecord"
+                    }
+                  ],
+                  "nullable": true
+                }
+              }
+            }
+          },
+          "inference": {
+            "type": "object",
+            "description": "Raw normalized output from the bundled local inference pipeline."
+          }
+        }
       },
       "MedicineLookupQuery": {
         "type": "object",
@@ -1079,78 +1280,6 @@
           }
         },
         "description": "MariaDB medicines 資料表中的藥品原始資訊；欄位名稱與資料庫一致。"
-      },
-      "MedicineRecognitionResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "ok",
-          "recognition",
-          "medicines"
-        ],
-        "properties": {
-          "ok": {
-            "type": "boolean",
-            "enum": [
-              true
-            ]
-          },
-          "recognition": {
-            "type": "object",
-            "required": [
-              "ids"
-            ],
-            "properties": {
-              "ids": {
-                "type": "array",
-                "maxItems": 3,
-                "items": {
-                  "type": "string"
-                }
-              },
-              "status": {
-                "type": "string"
-              },
-              "detected_features": {
-                "type": "object"
-              },
-              "detection_source": {
-                "type": "string"
-              },
-              "predictions": {
-                "type": "array",
-                "maxItems": 3,
-                "items": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "medicines": {
-            "type": "array",
-            "maxItems": 3,
-            "items": {
-              "type": "object",
-              "required": [
-                "license_number",
-                "medicine"
-              ],
-              "properties": {
-                "license_number": {
-                  "type": "string"
-                },
-                "medicine": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/MedicineDatabaseRecord"
-                    }
-                  ],
-                  "nullable": true
-                }
-              }
-            }
-          }
-        }
       },
       "MedicineLookupResponse": {
         "type": "object",

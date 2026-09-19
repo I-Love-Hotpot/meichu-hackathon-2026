@@ -32,8 +32,8 @@ npm start
 - `GET /api-docs/swagger.json`
 - `POST /api/sms/test` (temporary, disabled by default)
 - `GET /api/medicine?license_number=許可證字號` (look up one medicine in MariaDB)
-- `POST /api/medicine/recognize` (recognize an uploaded medicine image with the local model)
 - `GET /api/medicine/search?q=medicine-name` (CSV medicine search and English translation)
+- `POST /api/medicine/recognize` (raw JPEG/PNG/WebP recognition with the local `.pt` model)
 - `POST /api/medicine/chat` (Gemini medicine assistant)
 
 The OpenAPI document is stored at `backend/api-docs/swagger.json` and is exposed at `http://localhost:3001/api-docs/swagger.json` during local development.
@@ -48,7 +48,7 @@ The interactive Swagger UI is available at `http://localhost:3001/api-docs`.
 - `TWILIO_AUTH_TOKEN`: Twilio Auth Token
 - `TWILIO_FROM_NUMBER`: Twilio phone number used as the SMS sender, in E.164 format
 - `ENABLE_TEST_SMS_ENDPOINT`: set to `true` to enable the temporary SMS test endpoint; default `false`
-- `GEMINI_API_KEY`: server-only Gemini API key; a missing key returns HTTP 503 when a single medicine is resolved. Search and candidate clarification do not require a key.
+- `GEMINI_API_KEY`: server-only Gemini API key used by medicine chat. A missing key returns HTTP 503 when chat resolves one medicine. Search, local image recognition, and candidate clarification do not require a key.
 - `GEMINI_MODEL`: Gemini model ID supporting structured output; default `gemini-3.5-flash`. Set this to a model enabled for your API key.
 - `GEMINI_TIMEOUT_MS`: provider deadline in milliseconds, from `1000` to `120000`; default `30000`
 - `GEMINI_SYSTEM_PROMPT`: assistant identity, quoted as a single line in `.env`; the mandatory safety instructions still require every response to use American English (`en-US`), regardless of input language.
@@ -58,36 +58,6 @@ The interactive Swagger UI is available at `http://localhost:3001/api-docs`.
 - `MEDICINE_RECOGNIZER_SCRIPT`: optional path override for the Python recognizer. Empty uses the bundled `pill_inference_package/inference.py`.
 - `MEDICINE_RECOGNIZER_PYTHON`: Python executable used for the recognizer; default `python3`.
 - `MEDICINE_RECOGNIZER_TIMEOUT_MS`: recognition deadline from `1000` to `120000`; default `30000`.
-
-## Recognize a medicine image
-
-`POST /api/medicine/recognize` accepts one `multipart/form-data` file named `image` (JPEG, PNG, or WebP; maximum 10 MiB). It runs the bundled local script as:
-
-```bash
-python3 pill_inference_package/inference.py \
-  --image /temporary/uploaded-image.png \
-  --output /temporary/prediction.json
-```
-
-The script loads `pill_inference_package/models/pill_detector.pt` and writes its prediction JSON to standard output. Each prediction includes the full `license_number`; the endpoint accepts up to three predictions.
-
-```json
-{
-  "status": "candidates_found",
-  "predictions": [
-    { "pill_id": "000386", "license_number": "內衛成製字第000386號" }
-  ]
-}
-```
-
-The backend uses those IDs to perform the same MariaDB lookup as `GET /api/medicine`, returning each input ID with its matching record (or `null` when no record exists).
-
-The backend Docker images install a CPU-only PyTorch runtime and the inference package dependencies. The model, inference source, configuration, and CSV are bundled into the backend image, so no host-side Python installation or model mount is required.
-
-```bash
-curl http://localhost:3001/api/medicine/recognize \
-  -F 'image=@./pill.jpg;type=image/jpeg'
-```
 
 ## Look up a medicine by license number
 
@@ -137,6 +107,35 @@ This validates the source and refreshes the deployment copy. The backend reloads
 
 The CSV provides license identifiers, Chinese and English names, shape, color, score lines, appearance size, imprints, and image links. It does **not** provide indications, ingredient details, adverse effects, interactions, or dosage. Empty values mean “not provided,” and the size field has no stated unit.
 
+## Recognize a medicine image with the local model
+
+`POST /api/medicine/recognize` accepts the image bytes directly, not JSON,
+base64, or `multipart/form-data`. Set `Content-Type` to `image/jpeg`,
+`image/png`, or `image/webp`; the maximum body size is 5 MiB. The declared
+content type must match the file signature.
+
+```bash
+curl http://localhost:3001/api/medicine/recognize \
+  -H 'Content-Type: image/jpeg' \
+  --data-binary '@medicine.jpg'
+```
+
+The bundled Python pipeline loads `pill_inference_package/models/pill_detector.pt`,
+detects the pill, analyzes color and shape, and returns up to three complete
+`license_number` values. The backend looks up each ID in MariaDB using the same
+repository as `GET /api/medicine`. The response contains frontend-compatible
+records, the raw MariaDB lookup results in `medicines`, and normalized local
+pipeline details in `inference`. A successful request may return empty arrays
+when no pill or candidate is found.
+
+The backend writes the upload to a private temporary directory only for the
+duration of inference and removes it afterward. The image is not sent to Gemini,
+Google Translation, or another external recognition provider.
+
+The Docker images install a CPU-only PyTorch runtime and all inference
+dependencies. The Python source, model, configuration, and CSV are bundled, so
+containers do not require a host-side Python installation or model mount.
+
 Enable Cloud Translation API in Google Cloud, create an API key restricted to that API, and add both server-side keys to `.env`. Never use a `VITE_` prefix for either key. Docker Compose reads the repository-root `.env`; local `npm run dev` reads `backend/.env`.
 
 ```dotenv
@@ -182,7 +181,7 @@ Translation uses the official [Cloud Translation Basic v2 REST method](https://c
 npm test
 ```
 
-Tests mock the database, Gemini, and Google Cloud Translation, require no database or API keys, and consume no quota. They cover license lookup, parameterized SQL, connection cleanup, CSV parsing, all-record loading, search, candidate selection, follow-ups, translation batching/caching/errors, provider failures, Swagger, and UI contracts.
+Tests mock the database, Gemini, and Google Cloud Translation, require no database or API keys, and consume no quota. They cover license lookup, parameterized SQL, connection cleanup, CSV parsing, all-record loading, search, image content types and limits, visible-evidence extraction, deterministic name/text/imprint matching, the no-imprint safety rule, candidate selection, follow-ups, translation batching/caching/errors, provider failures, Swagger, and UI contracts.
 
 ## Sending SMS from backend services
 
@@ -191,15 +190,12 @@ Import `sendSms` from `src/services/twilio.service.js` in any backend service:
 ```js
 import { sendSms } from "./services/twilio.service.js";
 
-const message = await sendSms({
-	to: "+886912345678",
-	body: "Your verification code is 123456",
-});
+const message = await sendSms({ to: "+886912345678" });
 
 console.log(message.sid);
 ```
 
-`sendSms` sends plain text only and returns the Twilio message object. It throws a configuration error when the Twilio environment variables are missing and a validation error when `to` or `body` is empty.
+The Twilio account currently in use is a **trial account**, which can only send SMS using a predefined template as the message body (`sms_appointment_reminders`); any other free-form text is rejected with `Invalid template name.`. `sendSms` therefore defaults `body` to that template and callers should not override it until the account is upgraded. `sendSms` returns the Twilio message object and throws a configuration error when the Twilio environment variables are missing and a validation error when `to` is empty.
 
 ## Temporary SMS test endpoint
 
@@ -208,7 +204,7 @@ Set `ENABLE_TEST_SMS_ENDPOINT=true`, restart the backend, and call:
 ```bash
 curl -X POST http://localhost:3001/api/sms/test \
 	-H 'Content-Type: application/json' \
-	-d '{"to":"+886912345678","body":"This is a test SMS"}'
+	-d '{"to":"+886912345678"}'
 ```
 
-The endpoint is disabled by default and should not be enabled in production. It returns the Twilio message `sid` and status when the message is accepted.
+The endpoint always sends the predefined `sms_appointment_reminders` template body (trial account restriction) and does not accept a custom `body`. It is disabled by default and should not be enabled in production. It returns the Twilio message `sid` and status when the message is accepted.

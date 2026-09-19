@@ -31,7 +31,7 @@
 
 .app-header {
   height: 40px;
-  padding: 0 10px;
+  padding: 0 8pt;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
@@ -50,11 +50,27 @@
   margin: 0;
   overflow: hidden;
   font-size: 24px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 32px;
   text-align: center;
+  white-space: nowrap;
+}
+
+.app-header__title-track {
+  max-width: 100%;
+  display: block;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.app-header__title.is-marquee .app-header__title-track {
+  width: max-content;
+  max-width: none;
+  overflow: visible;
+  text-align: left;
+  text-overflow: clip;
+  will-change: transform;
 }
 
 .header-meta {
@@ -63,18 +79,30 @@
   font-weight: 900;
 }
 
+.header-meta:first-child {
+  grid-column: 1;
+}
+
 .header-meta:last-child {
+  grid-column: 3;
   text-align: right;
 }
 
 .screen-content {
   height: 240px;
-  padding: 10px 12px;
+  min-height: 0;
+  padding: 8pt;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--screen);
+  scrollbar-width: none;
+}
+
+.screen-content::-webkit-scrollbar {
+  display: none;
 }
 
 .screen-content button,
@@ -98,6 +126,7 @@
 .medicine-row {
   width: 100%;
   min-height: 43px;
+  flex: 0 0 auto;
   padding: 7px 10px;
   display: flex;
   align-items: center;
@@ -114,9 +143,15 @@
 
 .list-row > span:first-child {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.list-row > span:last-child {
+  flex: 0 0 auto;
+  margin-left: 8px;
 }
 
 .dense-list,
@@ -127,6 +162,86 @@
   gap: 6px;
 }
 
+.dense-list {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.dense-list::-webkit-scrollbar {
+  display: none;
+}
+
+.medicine-chat-menu {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.medicine-chat-menu::-webkit-scrollbar {
+  display: none;
+}
+
+.chat-history-empty {
+  margin: auto 0;
+  color: var(--secondary);
+  text-align: center;
+}
+
+.chat-history-list {
+  width: 100%;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.chat-history-list::-webkit-scrollbar {
+  display: none;
+}
+
+.chat-history-row {
+  width: 100%;
+  min-height: 68px;
+  padding: 7px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--divider);
+  border-radius: 8px;
+  color: var(--ink);
+  background: white;
+  text-align: left;
+  appearance: none;
+}
+
+.chat-history-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.chat-history-copy strong,
+.chat-history-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-history-copy strong {
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.chat-history-copy small {
+  color: var(--secondary);
+  font-size: 11px;
+  line-height: 15px;
+}
+
 .dense-list .list-row {
   min-height: 36px;
   padding-block: 4px;
@@ -134,9 +249,21 @@
 }
 
 .medicine-list {
+  min-height: 0;
+  flex: 1;
   gap: 4px;
   overflow-y: auto;
   scrollbar-width: none;
+}
+
+.medicine-list > .medicine-row,
+.medicine-list > .list-row,
+.dense-list > .list-row,
+.reminder-list > .list-row,
+.medicine-detail-list > .list-row,
+.medicine-detail-list > .medicine-row {
+  height: auto;
+  flex: 0 0 auto;
 }
 
 .medicine-list::-webkit-scrollbar {
@@ -209,15 +336,17 @@
 .medicine-copy {
   min-width: 0;
   display: flex;
+  flex: 1;
   flex-direction: column;
 }
 
 .medicine-copy strong {
-  overflow: hidden;
+  overflow: visible;
+  overflow-wrap: anywhere;
   font-size: 15px;
   line-height: 20px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .medicine-copy small {
@@ -225,6 +354,8 @@
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .prompt,
@@ -241,9 +372,9 @@
 
 .helper {
   color: var(--secondary);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 18px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 17px;
 }
 
 .helper.input-error {
@@ -328,6 +459,14 @@
   line-height: 28px;
 }
 
+.demo-reset-content {
+  min-width: 0;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .processing {
   display: flex;
   flex-direction: column;
@@ -359,6 +498,33 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.chat-search-form {
+  flex-shrink: 0;
+}
+
+.chat-search-status {
+  margin: 0;
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 15px;
+  overflow-wrap: anywhere;
+}
+
+.chat-search-status.input-error {
+  color: var(--danger);
+}
+
+.chat-selected-medicine {
+  margin: 0;
+  overflow: hidden;
+  color: var(--secondary);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .focusable-field {
@@ -434,6 +600,92 @@
   background: var(--danger-soft);
   font-size: 15px;
   line-height: 22px;
+}
+
+.emergency-detail,
+.cpr-step {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.emergency-detail::-webkit-scrollbar,
+.cpr-step::-webkit-scrollbar {
+  display: none;
+}
+
+.emergency-detail p,
+.cpr-step p {
+  margin: 0;
+}
+
+.emergency-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 19px;
+}
+
+.emergency-detail ol {
+  margin: 0;
+  padding-left: 24px;
+}
+
+.emergency-detail li + li {
+  margin-top: 5px;
+}
+
+.emergency-detail__label {
+  color: var(--secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.emergency-result {
+  padding: 8px 10px;
+  border: 2px solid var(--danger);
+  border-radius: 8px;
+  color: #8f241e;
+  background: var(--danger-soft);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.emergency-warning {
+  padding: 6px 8px;
+  border-left: 4px solid var(--danger);
+  color: #8f241e;
+  background: var(--danger-soft);
+  font-weight: 700;
+}
+
+.cpr-step {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 15px;
+  line-height: 21px;
+}
+
+.cpr-step__progress {
+  color: var(--secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cpr-step > strong {
+  color: #8f241e;
+  font-size: 20px;
+  line-height: 25px;
+}
+
+.cpr-step__tempo {
+  color: var(--danger);
+  font-size: 22px;
+  font-weight: 900;
+  text-align: center;
 }
 
 .match-deck {
@@ -554,12 +806,20 @@
 }
 
 .match-manual-content {
+  width: 100%;
+  max-height: 100%;
   padding: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  overflow-y: auto;
   text-align: center;
+  scrollbar-width: none;
+}
+
+.match-manual-content::-webkit-scrollbar {
+  display: none;
 }
 
 .match-plus {
@@ -621,6 +881,12 @@
   background: var(--focus-stroke);
 }
 
+.match-count {
+  display: none;
+  font-family: Roboto, Arial, sans-serif;
+  font-weight: 700;
+}
+
 .softkey-bar {
   height: 40px;
   display: grid;
@@ -631,7 +897,7 @@
 
 .softkey-bar button {
   min-width: 0;
-  padding: 0 10px;
+  padding: 0 8pt;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -641,6 +907,13 @@
   font-size: 16px;
   font-weight: 900;
   appearance: none;
+}
+
+.softkey-bar button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .softkey-bar button:first-child {
@@ -686,32 +959,44 @@
   .device-shell {
     width: 128px;
     height: 160px;
-    grid-template-rows: 26px 106px 28px;
+    grid-template-rows: 20px 120px 20px;
   }
 
   .app-header {
-    height: 26px;
-    padding: 0 4px;
-    grid-template-columns: 22px minmax(0, 1fr) 22px;
+    height: 20px;
+    padding: 0 4pt;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .app-header h1 {
+    grid-column: 1;
     width: 100%;
     max-width: none;
     font-size: 14px;
-    line-height: 18px;
+    font-weight: 700;
+    line-height: 20px;
+  }
+
+  .app-header--with-meta {
+    grid-template-columns: 26px minmax(0, 1fr) 26px;
+  }
+
+  .app-header--with-meta h1 {
+    grid-column: 2;
   }
 
   .header-meta {
+    min-width: 0;
     overflow: hidden;
-    font-size: 7px;
+    font-size: 8px;
+    line-height: 10px;
     text-overflow: clip;
     white-space: nowrap;
   }
 
   .screen-content {
-    height: 106px;
-    padding: 4px;
+    height: 120px;
+    padding: 4pt;
     gap: 3px;
   }
 
@@ -724,59 +1009,77 @@
 
   .list-row,
   .medicine-row {
-    min-height: 25px;
-    padding: 2px 4px;
+    min-height: 26px;
+    padding: 3px 4px;
   }
 
   .list-row {
-    font-size: 11px;
-    line-height: 13px;
+    font-size: 12px;
+    line-height: 15px;
   }
 
   .dense-list,
   .medicine-list,
   .reminder-list,
-  .medicine-detail-list {
+  .medicine-detail-list,
+  .chat-history-list {
     gap: 2px;
   }
 
-  .dense-list .list-row {
-    min-height: 17px;
-    padding: 1px 3px;
+  .chat-history-row {
+    min-height: 50px;
+    padding: 3px;
+    gap: 2px;
+    border-radius: 4px;
+  }
+
+  .chat-history-copy strong {
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  .chat-history-copy small {
     font-size: 10px;
-    line-height: 11px;
+    line-height: 12px;
+  }
+
+  .dense-list .list-row {
+    min-height: 23px;
+    padding: 2px 3px;
+    font-size: 12px;
+    line-height: 15px;
   }
 
   .medicine-list .medicine-row,
   .medicine-list .list-row,
   .medicine-row {
-    min-height: 23px;
+    min-height: 36px;
   }
 
   .medicine-list .medicine-row,
   .medicine-list .list-row {
-    height: 19px;
-    min-height: 19px;
-    padding: 1px 3px;
+    height: auto;
+    min-height: 34px;
+    padding: 2px 3px;
   }
 
   .medicine-list .medicine-copy small {
-    display: none;
+    display: block;
   }
 
   .medicine-list .list-row {
-    font-size: 10px;
-    line-height: 11px;
+    font-size: 12px;
+    line-height: 15px;
   }
 
   .reminder-list .list-row,
   .medicine-detail-list .list-row,
   .medicine-detail-list .medicine-row {
-    height: 19px;
-    min-height: 19px;
-    padding: 1px 3px;
-    font-size: 10px;
-    line-height: 11px;
+    height: auto;
+    min-height: 26px;
+    padding: 2px 3px;
+    font-size: 12px;
+    line-height: 15px;
   }
 
   .is-selected,
@@ -789,38 +1092,39 @@
 
   .medicine-row {
     gap: 3px;
-    padding: 1px 3px;
+    padding: 2px 3px;
   }
 
   .checkmark {
-    width: 12px;
-    flex-basis: 12px;
-    font-size: 11px;
+    width: 14px;
+    flex-basis: 14px;
+    font-size: 14px;
   }
 
   .medicine-copy strong {
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  .medicine-copy small {
     font-size: 10px;
     line-height: 12px;
   }
 
-  .medicine-copy small {
-    font-size: 8px;
-    line-height: 9px;
-  }
-
   .prompt {
     font-size: 12px;
-    line-height: 14px;
+    line-height: 15px;
   }
 
   .helper {
-    display: none;
+    display: block;
+    font-size: 10px;
+    line-height: 12px;
   }
 
   .helper.input-error {
-    display: block;
-    font-size: 8px;
-    line-height: 9px;
+    font-size: 10px;
+    line-height: 12px;
   }
 
   .decision {
@@ -829,7 +1133,7 @@
 
   .decision button {
     height: 32px;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .quantity-picker {
@@ -869,8 +1173,12 @@
   }
 
   .feedback-card span:not(.feedback-mark) {
-    font-size: 9px;
-    line-height: 11px;
+    font-size: 10px;
+    line-height: 12px;
+  }
+
+  .demo-reset-content {
+    gap: 3px;
   }
 
   .processing {
@@ -886,6 +1194,11 @@
     gap: 2px;
   }
 
+  .chat-selected-medicine {
+    font-size: 10px;
+    line-height: 12px;
+  }
+
   .focusable-field {
     padding: 1px;
     gap: 1px;
@@ -894,9 +1207,9 @@
   }
 
   .manual-form label {
-    font-size: 9px;
-    line-height: 10px;
-    white-space: nowrap;
+    font-size: 12px;
+    line-height: 14px;
+    white-space: normal;
   }
 
   .manual-form input,
@@ -904,32 +1217,84 @@
     padding: 4px 6px;
     border-width: 2px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .manual-form input {
-    height: 24px;
+    height: 28px;
   }
 
   .manual-form textarea {
-    height: 30px;
+    height: 42px;
   }
 
   .manual-description {
     padding: 2px 0;
-    font-size: 9px;
-    line-height: 11px;
+    font-size: 10px;
+    line-height: 12px;
+  }
+
+  .chat-search-status {
+    font-size: 10px;
+    line-height: 12px;
   }
 
   .emergency-line {
     padding: 3px 4px;
     border-left-width: 3px;
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  .emergency-detail {
+    gap: 3px;
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  .emergency-detail ol {
+    padding-left: 15px;
+  }
+
+  .emergency-detail li + li {
+    margin-top: 2px;
+  }
+
+  .emergency-detail__label,
+  .cpr-step__progress {
     font-size: 10px;
-    line-height: 13px;
+    line-height: 12px;
+  }
+
+  .emergency-result {
+    padding: 3px 4px;
+    border-width: 1.5px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .emergency-warning {
+    padding: 3px 4px;
+    border-left-width: 3px;
+  }
+
+  .cpr-step {
+    gap: 4px;
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  .cpr-step > strong {
+    font-size: 14px;
+    line-height: 16px;
+  }
+
+  .cpr-step__tempo {
+    font-size: 15px;
   }
 
   .match-deck {
-    grid-template-rows: minmax(0, 1fr) 8px;
+    grid-template-rows: minmax(0, 1fr) 12px;
     gap: 2px;
   }
 
@@ -947,7 +1312,7 @@
   }
 
   .match-card-scroll img {
-    height: 42px;
+    height: 48px;
   }
 
   .match-card-copy {
@@ -955,26 +1320,26 @@
   }
 
   .match-card-position {
-    font-size: 7px;
-    line-height: 8px;
-  }
-
-  .match-card-copy h2 {
-    margin: 0 0 3px;
     font-size: 10px;
     line-height: 12px;
   }
 
+  .match-card-copy h2 {
+    margin: 0 0 3px;
+    font-size: 12px;
+    line-height: 15px;
+  }
+
   .match-card-copy dt {
     margin-top: 3px;
-    font-size: 8px;
-    line-height: 9px;
+    font-size: 10px;
+    line-height: 12px;
   }
 
   .match-card-copy dd {
     margin-top: 0;
-    font-size: 8px;
-    line-height: 10px;
+    font-size: 10px;
+    line-height: 13px;
   }
 
   .match-scroll-hint {
@@ -982,54 +1347,52 @@
   }
 
   .match-manual-content {
-    padding: 4px;
-    gap: 3px;
+    padding: 3px;
+    gap: 2px;
   }
 
   .match-plus {
-    width: 32px;
-    height: 32px;
-    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    font-size: 20px;
   }
 
   .match-manual-content strong {
-    font-size: 11px;
-    line-height: 13px;
+    font-size: 12px;
+    line-height: 15px;
   }
 
   .match-manual-content small {
-    font-size: 8px;
-    line-height: 9px;
+    font-size: 10px;
+    line-height: 12px;
   }
 
   .match-deck-footer {
-    height: 8px;
-    grid-template-columns: 12px 1fr 12px;
+    height: 12px;
+    grid-template-columns: 16px 1fr 16px;
     font-size: 10px;
-    line-height: 8px;
+    line-height: 12px;
   }
 
   .match-dots {
-    gap: 3px;
+    gap: 0;
   }
 
   .match-dots button {
-    width: 4px;
-    height: 4px;
-    border-radius: 2px;
+    display: none;
   }
 
-  .match-dots button.is-active {
-    width: 10px;
+  .match-count {
+    display: block;
   }
 
   .softkey-bar {
-    height: 28px;
-    grid-template-columns: 1fr 28px 1fr;
+    height: 20px;
+    grid-template-columns: 1fr 20px 1fr;
   }
 
   .softkey-bar button {
-    padding: 0 4px;
+    padding: 0 3px;
     gap: 2px;
     overflow: hidden;
     font-size: 10px;
@@ -1044,8 +1407,8 @@
   }
 
   .softkey-bar svg {
-    width: 11px;
-    height: 11px;
-    flex-basis: 11px;
+    width: 10px;
+    height: 10px;
+    flex-basis: 10px;
   }
 }

@@ -1,5 +1,12 @@
 import twilio from "twilio";
 
+// This Twilio account is a trial account. Trial accounts can only send SMS
+// using this predefined template as the message body; any other free-form
+// text is rejected with "Invalid template name." Once the account is
+// upgraded, this restriction can be lifted and callers can pass their own
+// `body` again.
+export const TRIAL_SMS_TEMPLATE_BODY = "sms_appointment_reminders";
+
 let client;
 let clientConfigKey;
 
@@ -37,12 +44,16 @@ function getClient({ accountSid, authToken }) {
 }
 
 /**
- * Send a plain-text SMS through Twilio.
+ * Send an SMS through Twilio.
  *
- * @param {{ to: string, body: string }} params
+ * This account is a trial account, which can only send the predefined
+ * `TRIAL_SMS_TEMPLATE_BODY` template as the message body. `body` defaults to
+ * that template and should not be overridden until the account is upgraded.
+ *
+ * @param {{ to: string, body?: string }} params
  * @returns {Promise<import("twilio").Twilio.Api.V2010.MessageInstance>}
  */
-export async function sendSms({ to, body } = {}) {
+export async function sendSms({ to, body = TRIAL_SMS_TEMPLATE_BODY } = {}) {
   if (typeof to !== "string" || !to.trim()) {
     throw new TypeError("SMS recipient `to` must be a non-empty string");
   }
