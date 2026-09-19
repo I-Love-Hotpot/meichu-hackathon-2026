@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: cloudphone-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    environment:
+      PORT: 3001
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      CLOUDPHONE_BASE_URL: ${CLOUDPHONE_BASE_URL}
+      CLOUDPHONE_WIDGET_URL: ${CLOUDPHONE_WIDGET_URL}
+      CLOUDPHONE_API_KEY: ${CLOUDPHONE_API_KEY:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://your-frontend-domain.example.com}
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cloudphone-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://backend:3001}

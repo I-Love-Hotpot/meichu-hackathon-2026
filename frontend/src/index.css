@@ -1,0 +1,57 @@
+:root {
+  font-family: 'Roboto', sans-serif;
+  background: black;
+  color: white;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+a {
+  color: #5CB5FF;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button[role='menuitem'] {
+  background: transparent;
+  border: none;
+  color: white;
+  margin: 0;
+  padding: 4pt 0;
+  display: block;
+  width: 100%;
+  text-align: start;
+}
+
+button[role='menuitem'].focused,
+button[role='menuitem']:focus {
+  background-color: #1971e6;
+  outline: none;
+  border-image: conic-gradient(#1971e6 0 0) fill 0//0 100vw;
+}
+
+button[role='menuitem'] .title,
+button[role='menuitem'] .description {
+  width: 100%;
+  display: block;
+}
+
+button[role='menuitem'] .title {
+  font-size: 12pt;
+  font-weight: bold;
+}
+
+button[role='menuitem'] .description {
+  font-size: 10pt;
+}
