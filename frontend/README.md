@@ -32,9 +32,9 @@ The physical right soft key uses native browser history rather than a keyboard l
 
 The photo flow uses the device's native camera or image picker via `<input type="file" accept="image/*" capture="environment">`; the selected image is not previewed in the app.
 
-Manual medicine entry stores a required name and optional description directly in `localStorage`; it deliberately skips recognition and API search, then continues to daily-use and reminder setup. The description is displayed as Directions and selected reminder times are stored with the medicine.
+Both manual entry routes use the same required name and optional Directions form. Manual entry selected from Add medicine continues to recognition/query and the result cards; manual entry selected from the final result card stores the values directly without another query.
 
-Directions and reminder times can be edited for both fixture and manually entered medicines. Reminder editing accepts comma-separated 24-hour times such as `08:00, 20:00`; saving returns to the same medicine detail screen.
+Directions and reminder times can be edited for both fixture and manually entered medicines. Reminder screens combine every time used by active medicines into reusable choices and add an `n + 1` Other time action. Medicines can also be archived, restored, or deleted from their detail screen. Completed flows clear intermediate history so Back returns to Home.
 
 The UI supports `zh-TW` and `en-US` through the existing i18next setup. Choose item `5` on the home screen to change language; the choice persists in `localStorage`.
 

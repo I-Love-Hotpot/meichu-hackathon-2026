@@ -44,7 +44,7 @@ Typography uses `Noto Sans TC`, then platform Chinese sans-serif fallbacks. QVGA
 - Quantity controls accept direct numeric entry. Press `*` for the decimal point, so `1`, `*`, `5` enters `1.5` pills.
 - Pointer clicks are supported for desktop development, but all primary flows work from the keypad.
 
-The physical right soft key is not handled as a keyboard event. Every internal screen transition creates a native browser history entry with `history.pushState()`. RSK therefore invokes the platform's normal back action and the app restores the previous screen from `popstate`; only the root entry may be closed by the platform. The rendered right soft-key button calls the same `history.back()` path for desktop testing.
+The physical right soft key is not handled as a keyboard event. Every internal screen transition creates a native browser history entry with `history.pushState()`. RSK therefore invokes the platform's normal back action and the app restores the previous screen from `popstate`; only the root entry may be closed by the platform. Completed flows collapse their intermediate history before showing feedback, so RSK returns to Home instead of reopening the completed flow. The rendered right soft-key button calls the same `history.back()` path for desktop testing.
 
 Destructive and emergency information uses both text and color; color is never the only cue.
 
@@ -52,18 +52,18 @@ Destructive and emergency information uses both text and color; color is never t
 
 1. Home → record today → toggle doses → completion feedback.
 2. Home → history → daily detail → update record → quantity.
-3. Home → medicines → medicine detail → edit directions or reminder times → return to medicine detail.
-4. Medicines → add medicine → photo/file → recognition → possible medicine matches → daily-use decision → reminder → completion.
-5. Medicines → add medicine → manual name and optional description → direct local save → daily-use decision → reminder selection → completion. Manual entries never call the recognition or search API.
+3. Home → medicines → medicine detail → edit directions/reminders, archive/unarchive, or delete.
+4. Medicines → add medicine → photo/file → recognition → possible medicine matches. Selecting a result continues through daily-use and reminders; selecting the final manual card stores its name and optional directions directly.
+5. Medicines → add medicine → manual name and optional directions → recognition/query → possible medicine matches.
 6. Home → emergency information.
 7. Home `9` → reminder alert demo → record or postpone.
 8. Home `5` → switch between Traditional Chinese (`zh-TW`) and US English (`en-US`).
 
 All current data is fixture data in `src/data/fixtures.js`. Today’s completion toggles persist in `localStorage` under `medaboutyou-today-doses`.
 
-User-entered medicines persist the submitted `name` and optional `description` immediately under `medaboutyou-user-medicines`. They then continue to the same daily-use and reminder steps as recognized medicines. The description is shown as Directions in medicine details, and selected reminder times are written back to the same local record. User-entered values are displayed as data, are not translated, and do not enter recognition or candidate-search states.
+User-entered medicines persist a submitted `name`, optional `directions`, reminder times, and archive state under `medaboutyou-user-medicines`. Existing `customDescription` records are migrated to `customDirections` on load. User-entered values are displayed as data and are not translated.
 
-Directions and reminders are editable from every medicine detail screen. Updates to fixture medicines persist as user overrides under `medaboutyou-medicine-settings`; updates to manually entered medicines are written back to their existing `medaboutyou-user-medicines` record. Saving either field returns to medicine details and never enters the dose-history flow.
+Directions and reminders are editable from every medicine detail screen. Reminder choices are the sorted union of times used by all active medicines, followed by an `n + 1` Other time action backed by a native time input. Updates to fixture medicines persist as user overrides under `medaboutyou-medicine-settings`; updates to manually entered medicines are written back to their existing `medaboutyou-user-medicines` record. Saving either field returns to medicine details and never enters the dose-history flow. Archived medicines move to a separate list and can be restored; deleting requires confirmation.
 
 ### Possible medicine cards
 

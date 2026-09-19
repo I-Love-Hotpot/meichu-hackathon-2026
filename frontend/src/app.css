@@ -151,6 +151,22 @@
   min-height: 40px;
 }
 
+.reminder-list,
+.medicine-detail-list {
+  width: 100%;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.reminder-list::-webkit-scrollbar,
+.medicine-detail-list::-webkit-scrollbar {
+  display: none;
+}
+
 .list-row--danger {
   border-color: #dba7a3;
   background: var(--danger-soft);
@@ -693,7 +709,9 @@
   }
 
   .dense-list,
-  .medicine-list {
+  .medicine-list,
+  .reminder-list,
+  .medicine-detail-list {
     gap: 2px;
   }
 
@@ -722,6 +740,16 @@
   }
 
   .medicine-list .list-row {
+    font-size: 10px;
+    line-height: 11px;
+  }
+
+  .reminder-list .list-row,
+  .medicine-detail-list .list-row,
+  .medicine-detail-list .medicine-row {
+    height: 19px;
+    min-height: 19px;
+    padding: 1px 3px;
     font-size: 10px;
     line-height: 11px;
   }
