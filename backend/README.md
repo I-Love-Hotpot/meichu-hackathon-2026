@@ -31,6 +31,7 @@ npm start
 - `GET /health`
 - `GET /api-docs/swagger.json`
 - `POST /api/sms/test` (temporary, disabled by default)
+- `POST /api/reminders/register` / `DELETE /api/reminders/register` (register or remove a phone number for automatic medication reminder SMS)
 - `GET /api/medicine?license_number=許可證字號` (look up one medicine in MariaDB)
 - `GET /api/medicine/search?q=medicine-name` (CSV medicine search and English translation)
 - `POST /api/medicine/recognize` (raw JPEG/PNG/WebP evidence extraction and deterministic CSV matching)
@@ -48,6 +49,7 @@ The interactive Swagger UI is available at `http://localhost:3001/api-docs`.
 - `TWILIO_AUTH_TOKEN`: Twilio Auth Token
 - `TWILIO_FROM_NUMBER`: Twilio phone number used as the SMS sender, in E.164 format
 - `ENABLE_TEST_SMS_ENDPOINT`: set to `true` to enable the temporary SMS test endpoint; default `false`
+- `REMINDER_CHECK_INTERVAL_MS`: how often the medication reminder scheduler checks for due reminders, in milliseconds; default `30000`
 - `GEMINI_API_KEY`: server-only Gemini API key used by medicine chat and image evidence extraction. A missing key returns HTTP 503 for image recognition and when chat resolves one medicine. Search and candidate clarification do not require a key.
 - `GEMINI_MODEL`: Gemini model ID supporting structured output; default `gemini-3.5-flash`. Set this to a model enabled for your API key.
 - `GEMINI_TIMEOUT_MS`: provider deadline in milliseconds, from `1000` to `120000`; default `30000`
@@ -210,3 +212,18 @@ curl -X POST http://localhost:3001/api/sms/test \
 ```
 
 The endpoint always sends the predefined `sms_appointment_reminders` template body (trial account restriction) and does not accept a custom `body`. It is disabled by default and should not be enabled in production. It returns the Twilio message `sid` and status when the message is accepted.
+
+## Automatic medication reminder SMS
+
+`POST /api/reminders/register` registers (or updates) a phone number together with a list of daily reminder times (`"HH:MM"`, 24-hour). A background scheduler checks every `REMINDER_CHECK_INTERVAL_MS` (default 30s) and sends the predefined `sms_appointment_reminders` template SMS to each registered phone number whose reminder times match the current time in the `Asia/Taipei` time zone. Each time slot is sent at most once per day.
+
+```bash
+curl -X POST http://localhost:3001/api/reminders/register \
+	-H 'Content-Type: application/json' \
+	-d '{"phone":"+886912345678","times":["08:00","13:00","20:00"]}'
+```
+
+`DELETE /api/reminders/register` with the same `phone` removes the registration. Registrations are persisted to `backend/data/reminders.json` (created automatically, ignored by git) so they survive a backend restart.
+
+The frontend calls this endpoint once the user enters their phone number on first launch, and again whenever their configured medicine reminder times change.
+

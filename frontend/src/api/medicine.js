@@ -2,9 +2,7 @@ export const defaultApiBaseUrl = "https://api.mc.dstw.dev";
 
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const apiBaseUrl = (
-  configuredApiBaseUrl === undefined
-    ? defaultApiBaseUrl
-    : configuredApiBaseUrl
+  configuredApiBaseUrl === undefined ? defaultApiBaseUrl : configuredApiBaseUrl
 )
   .trim()
   .replace(/\/+$/, "");
@@ -68,7 +66,7 @@ export class MedicineApiError extends Error {
   }
 }
 
-async function requestJson(path, options = {}) {
+export async function requestJson(path, options = {}) {
   let response;
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {

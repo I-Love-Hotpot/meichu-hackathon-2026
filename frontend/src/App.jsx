@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  recognizeMedicineImage,
-  searchMedicines,
-} from "./api/medicine.js";
+import { recognizeMedicineImage, searchMedicines } from "./api/medicine.js";
+import { registerReminderPhone } from "./api/reminders.js";
 import DeviceShell from "./components/DeviceShell.jsx";
 import MedicineChat from "./components/MedicineChat.jsx";
 import MedicineMatchDeck from "./components/MedicineMatchDeck.jsx";
@@ -24,6 +22,7 @@ import "./app.css";
 
 const SCREEN = {
   HOME: "home",
+  PHONE_SETUP: "phone-setup",
   ADD_METHOD: "add-method",
   UPLOAD: "upload",
   MANUAL: "manual",
@@ -65,6 +64,7 @@ const SCREEN = {
 };
 
 const HISTORY_KEY = "medaboutyou";
+const PHONE_STORAGE_KEY = "medaboutyou-phone";
 const SCREEN_VALUES = new Set(Object.values(SCREEN));
 const LANGUAGE_CODES = ["zh-TW", "en-US"];
 const CPR_STEP_COUNT = 6;
@@ -85,7 +85,10 @@ const extractStrength = (record) =>
     /\b\d+(?:\.\d+)?\s*(?:mcg|mg|g|iu|ml|%)\b/i,
   )?.[0] || "";
 const normalizeMedicineText = (value = "") =>
-  value.normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  value
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, "");
 const recognitionStrengthFor = (record, recognition) => {
   const medications = recognition?.medications || [];
   const names = [record.displayName, record.englishName]
@@ -187,6 +190,16 @@ export default function App() {
   const [focus, setFocus] = useState(0);
   const [decision, setDecision] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [phoneNumber, setPhoneNumber] = useState(() => {
+    try {
+      return localStorage.getItem(PHONE_STORAGE_KEY) || "";
+    } catch {
+      return "";
+    }
+  });
+  const [phoneInput, setPhoneInput] = useState("");
+  const [phoneEditingField, setPhoneEditingField] = useState(null);
+  const [phoneError, setPhoneError] = useState(false);
   const [manualName, setManualName] = useState("");
   const [manualDirections, setManualDirections] = useState("");
   const [manualEntryMode, setManualEntryMode] = useState("search");
@@ -224,6 +237,7 @@ export default function App() {
   const chatSearchRequestRef = useRef(null);
   const recognitionRequestRef = useRef(null);
   const recognitionSourceRef = useRef(null);
+  const lastSyncedReminderTimesRef = useRef(null);
   const quantityBufferRef = useRef("");
   const quantityTimerRef = useRef(null);
   const pendingResetRef = useRef(null);
@@ -249,8 +263,8 @@ export default function App() {
     (medicine.isCatalog
       ? medicine.strength || t("medicines.catalogEntry")
       : medicine.isCustom
-      ? t("medicines.manualEntry")
-      : t(`medicines.${medicine.id}.schedule`));
+        ? t("medicines.manualEntry")
+        : t(`medicines.${medicine.id}.schedule`));
   const medicineUsage = (id) => t(`medicines.${id}.usage`);
   const medicineDirections = (medicine) => {
     if (medicine.isCustom) return medicine.customDirections || "";
@@ -279,6 +293,9 @@ export default function App() {
       ...activeMedicines.flatMap(medicineReminders),
       ...selectedReminderTimes,
     ]),
+  ].sort();
+  const committedReminderTimes = [
+    ...new Set(activeMedicines.flatMap(medicineReminders)),
   ].sort();
   const doseDetail = ({ time, amount, unit }) =>
     t("dose.detail", {
@@ -491,9 +508,7 @@ export default function App() {
   const recognitionFailureMessage = (error, sourceKind) => {
     if (error.status === 400)
       return t(
-        sourceKind === "text"
-          ? "add.searchValidation"
-          : "add.invalidImage",
+        sourceKind === "text" ? "add.searchValidation" : "add.invalidImage",
       );
     if (error.status === 413) return t("add.imageTooLarge");
     if (error.status === 415) return t("add.unsupportedImage");
@@ -608,22 +623,23 @@ export default function App() {
             ),
       );
     } else {
+      const startScreen = phoneNumber ? SCREEN.HOME : SCREEN.PHONE_SETUP;
       window.history.replaceState(
         {
           [HISTORY_KEY]: true,
-          screen: SCREEN.HOME,
+          screen: startScreen,
           depth: 0,
           focus: getDefaultFocusForScreen(
-            SCREEN.HOME,
+            startScreen,
             currentLanguageRef.current,
           ),
         },
         "",
       );
-      activeScreenRef.current = SCREEN.HOME;
-      setScreen(SCREEN.HOME);
+      activeScreenRef.current = startScreen;
+      setScreen(startScreen);
       setFocus(
-        getDefaultFocusForScreen(SCREEN.HOME, currentLanguageRef.current),
+        getDefaultFocusForScreen(startScreen, currentLanguageRef.current),
       );
     }
 
@@ -676,6 +692,7 @@ export default function App() {
   useEffect(() => {
     shellRef.current?.focus();
     if (screen !== SCREEN.MANUAL) setManualEditingField(null);
+    if (screen !== SCREEN.PHONE_SETUP) setPhoneEditingField(null);
     setChatEditingField(null);
     quantityBufferRef.current = "";
     window.clearTimeout(quantityTimerRef.current);
@@ -693,6 +710,19 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = currentLanguage;
   }, [currentLanguage]);
+
+  useEffect(() => {
+    if (!phoneNumber) return;
+    const key = committedReminderTimes.join(",");
+    if (lastSyncedReminderTimesRef.current === key) return;
+    lastSyncedReminderTimesRef.current = key;
+    const controller = new AbortController();
+    registerReminderPhone(
+      { phone: phoneNumber, times: committedReminderTimes },
+      { signal: controller.signal },
+    ).catch(() => {});
+    return () => controller.abort();
+  });
 
   useEffect(
     () => () => {
@@ -774,6 +804,38 @@ export default function App() {
     setSelectedReminderTimes([]);
     setDecision(0);
     navigate(SCREEN.MANUAL, fromFocus);
+  };
+
+  const enterPhoneInputMode = (index = 0) => {
+    setFocus(index);
+    setPhoneEditingField(index);
+  };
+
+  const leavePhoneInputMode = () => {
+    setPhoneEditingField(null);
+    window.requestAnimationFrame(() => shellRef.current?.focus());
+  };
+
+  const submitPhoneSetup = () => {
+    const trimmed = phoneInput.trim();
+    if (!/^\+?[0-9]{6,15}$/.test(trimmed)) {
+      setPhoneError(true);
+      return;
+    }
+    setPhoneError(false);
+    try {
+      localStorage.setItem(PHONE_STORAGE_KEY, trimmed);
+    } catch {
+      // Ignore storage failures (e.g. private browsing); phoneNumber state
+      // still updates for this session.
+    }
+    setPhoneNumber(trimmed);
+    lastSyncedReminderTimesRef.current = committedReminderTimes.join(",");
+    void registerReminderPhone({
+      phone: trimmed,
+      times: committedReminderTimes,
+    }).catch(() => {});
+    resetFlow(SCREEN.HOME);
   };
 
   const enterManualInputMode = (index = focus) => {
@@ -989,6 +1051,57 @@ export default function App() {
 
   const screenConfig = (() => {
     switch (screen) {
+      case SCREEN.PHONE_SETUP:
+        return {
+          title: t("phoneSetup.title"),
+          count: 1,
+          left: t("common.confirm"),
+          right: "",
+          onLeft: submitPhoneSetup,
+          onEnter: () => {
+            if (phoneEditingField !== null) leavePhoneInputMode();
+            else enterPhoneInputMode();
+          },
+          onInputKey: () => {
+            if (phoneEditingField !== null) leavePhoneInputMode();
+            else enterPhoneInputMode();
+          },
+          content: (
+            <form
+              className="manual-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                submitPhoneSetup();
+              }}
+            >
+              <p className="prompt">{t("phoneSetup.prompt")}</p>
+              <FocusableField
+                id="phone-number"
+                label={t("phoneSetup.phoneLabel")}
+                value={phoneInput}
+                placeholder={t("phoneSetup.phonePlaceholder")}
+                selected={focus === 0}
+                editing={phoneEditingField === 0}
+                onChange={(event) => {
+                  setPhoneInput(event.target.value);
+                  setPhoneError(false);
+                }}
+                maxLength={20}
+                onSelect={() => setFocus(0)}
+                onEditingChange={(editing) => {
+                  if (editing) enterPhoneInputMode(0);
+                  else if (phoneEditingField === 0) leavePhoneInputMode();
+                }}
+                required
+              />
+              {phoneError && (
+                <p className="helper input-error">{t("phoneSetup.invalid")}</p>
+              )}
+              <p className="helper">{t("phoneSetup.help")}</p>
+            </form>
+          ),
+        };
+
       case SCREEN.HOME:
         return {
           title: t("home.title"),
@@ -1201,22 +1314,18 @@ export default function App() {
           const candidate = localizedCandidates[focus];
           if (candidate) {
             const existingMedicine = userMedicines.find(
-              (medicine) =>
-                medicine.catalogRecordId === candidate.recordId,
+              (medicine) => medicine.catalogRecordId === candidate.recordId,
             );
             const medicine = {
               ...existingMedicine,
-              id:
-                existingMedicine?.id ||
-                `catalog-${candidate.recordId}`,
+              id: existingMedicine?.id || `catalog-${candidate.recordId}`,
               isCustom: true,
               isCatalog: true,
               catalogRecordId: candidate.recordId,
               recordId: candidate.recordId,
               sourceRecord: candidate.sourceRecord,
               customName: existingMedicine?.customName || candidate.name,
-              strength:
-                existingMedicine?.strength || candidate.strength || "",
+              strength: existingMedicine?.strength || candidate.strength || "",
               customDirections:
                 existingMedicine?.customDirections || manualDirections.trim(),
               reminders: existingMedicine?.reminders || [],
@@ -1240,9 +1349,7 @@ export default function App() {
             ? t("common.confirm")
             : t("common.retry"),
           right: t("common.back"),
-          onLeft: localizedCandidates.length
-            ? undefined
-            : retryRecognition,
+          onLeft: localizedCandidates.length ? undefined : retryRecognition,
           onEnter: activateMatch,
           onNumber: (number) => {
             if (number >= 1 && number <= localizedCandidates.length + 1)

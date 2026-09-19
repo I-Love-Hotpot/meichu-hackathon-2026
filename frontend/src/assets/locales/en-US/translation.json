@@ -19,6 +19,14 @@
     "noLeftAction": "No left soft-key action",
     "noRightAction": "No right soft-key action"
   },
+  "phoneSetup": {
+    "title": "Welcome",
+    "prompt": "Enter your phone number to receive medication reminder SMS.",
+    "phoneLabel": "Phone number",
+    "phonePlaceholder": "+886912345678",
+    "help": "Press Confirm to save. This screen only appears once.",
+    "invalid": "Enter a valid phone number, e.g. +886912345678."
+  },
   "home": {
     "title": "Main menu",
     "medicineRecognition": "Medicine recognition",
