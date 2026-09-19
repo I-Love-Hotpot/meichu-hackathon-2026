@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import DeviceShell from './components/DeviceShell.jsx'
+import MedicineChat from './components/MedicineChat.jsx'
 import {
   Decision,
   FeedbackCard,
@@ -36,6 +37,7 @@ const SCREEN = {
   MEDICINES: 'medicines',
   MEDICINE_DETAIL: 'medicine-detail',
   EMERGENCY: 'emergency',
+  MEDICINE_CHAT: 'medicine-chat',
   LANGUAGE: 'language',
 }
 
@@ -191,7 +193,7 @@ export default function App() {
     { label: t('home.history'), target: SCREEN.HISTORY },
     { label: t('home.myMedicines'), target: SCREEN.MEDICINES },
     { label: t('home.emergency'), target: SCREEN.EMERGENCY, state: 'danger' },
-    { label: t('home.language'), target: SCREEN.LANGUAGE },
+    { label: t('home.medicineQuestions'), target: SCREEN.MEDICINE_CHAT },
   ], [t])
 
   const move = (delta, count) => setFocus((current) => (current + delta + count) % count)
@@ -563,9 +565,15 @@ export default function App() {
           </>,
         }
 
+      case SCREEN.MEDICINE_CHAT:
+        return {
+          title: t('chat.title'), count: 0,
+          left: null, right: t('common.back'),
+          content: <div className="medicine-chat-screen"><MedicineChat /></div>,
+        }
+
       case SCREEN.LANGUAGE: {
         const languages = [
-          { code: 'zh-TW', label: t('language.zhTW') },
           { code: 'en-US', label: t('language.enUS') },
         ]
         const selectLanguage = (index) => {
@@ -608,8 +616,9 @@ export default function App() {
   const onRight = goBack
 
   const handleKeyDown = (event) => {
-    const isTextInput = event.target instanceof HTMLInputElement && event.target.type !== 'file'
-    if (isTextInput && event.key !== 'Enter' && event.key !== 'Escape') return
+    const isTextInput = (event.target instanceof HTMLInputElement && event.target.type !== 'file')
+      || event.target instanceof HTMLTextAreaElement
+    if (isTextInput) return
 
     const isQuantityEntry = screen === SCREEN.QUANTITY
       || (screen === SCREEN.REMINDER_ALERT && focus === 1)

@@ -9,4 +9,7 @@ export default defineConfig({
     assetsInlineLimit: 8192,
   },
   plugins: [svgr(), react()],
+  server: {
+    proxy: { '/api': 'http://localhost:3001' },
+  },
 })

@@ -57,7 +57,7 @@ export default function DeviceShell({
   return (
     <main
       className="device-shell"
-      aria-label={`MedAboutYou：${title}`}
+      aria-label={`MedAboutYou: ${title}`}
       tabIndex={0}
       ref={screenRef}
       onKeyDown={onKeyDown}

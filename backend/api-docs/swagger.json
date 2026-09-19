@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "CloudPhone Widget Backend API",
-    "version": "v1.0.0",
+    "version": "v1.2.0",
     "description": "API for the backend of the custom CloudPhone widget."
   },
   "servers": [
@@ -21,7 +21,9 @@
             "description": "Service is running",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ServiceStatus" }
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceStatus"
+                }
               }
             }
           }
@@ -37,7 +39,9 @@
             "description": "Service is healthy",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
               }
             }
           }
@@ -54,7 +58,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/TestSmsRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/TestSmsRequest"
+              }
             }
           }
         },
@@ -63,7 +69,9 @@
             "description": "SMS accepted by Twilio",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/TestSmsResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/TestSmsResponse"
+                }
               }
             }
           },
@@ -71,7 +79,9 @@
             "description": "Invalid recipient or message",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -79,7 +89,9 @@
             "description": "Twilio failed to send the SMS",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -87,7 +99,221 @@
             "description": "Twilio is not configured",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/medicine/chat": {
+      "post": {
+        "tags": [
+          "Medicine"
+        ],
+        "summary": "Medicine questions and recognition-data explanation",
+        "operationId": "chatWithMedicineAssistant",
+        "description": "Accepts questions in any language and always returns user-facing response text in American English (en-US). Searches 42_2.csv first. A single matching record is translated to English with Google Cloud Translation and supplied to Gemini. Multiple candidates require selection; no match returns an explicit response without calling Gemini. The dataset contains names, license identifiers, and appearance data, but no dosage, indications, or adverse effects.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MedicineChatRequest"
+              },
+              "examples": {
+                "basic": {
+                  "summary": "Basic question",
+                  "value": {
+                    "message": "What color is CHENG KONG PILL?",
+                    "history": []
+                  }
+                },
+                "recognition": {
+                  "summary": "Recognition-data explanation",
+                  "value": {
+                    "message": "Please explain this recognition result.",
+                    "recognition": {
+                      "text": "CHENG KONG PILL",
+                      "medications": [
+                        {
+                          "name": "CHENG KONG PILL",
+                          "confidence": 0.82
+                        }
+                      ]
+                    },
+                    "history": []
+                  }
+                },
+                "selected": {
+                  "summary": "Question about a selected medicine",
+                  "value": {
+                    "message": "What are its shape, color, and score line?",
+                    "selectedMedicineId": "med_5YWn6KGb5oiQ6KO95a2X56ysMDAwMzg26Jmf",
+                    "history": []
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Medicine assistant response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicineChatResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or conversation-history order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "JSON request exceeds 256 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content type must be application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Gemini safety filtering prevented a response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gemini or Translation API rate/quota limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Gemini or Translation API connection/response error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CSV missing/invalid, or Gemini/Translation API is not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gemini or Translation API timed out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "selectedMedicineId is not in the dataset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/medicine/search": {
+      "get": {
+        "tags": [
+          "Medicine"
+        ],
+        "summary": "Search medicines in the CSV",
+        "operationId": "searchMedicines",
+        "description": "Searches by English/Chinese name or license identifier, translates Chinese fields to English with Google Cloud Translation, and returns up to 8 records. total is the full match count. Empty fields mean the source did not provide a value. Requires GOOGLE_TRANSLATE_API_KEY when matched records contain Chinese text.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 200,
+              "pattern": "\\S.*\\S",
+              "description": "English/Chinese medicine name or license identifier; partial matching is supported."
+            },
+            "example": "PANADOL"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results translated to English",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicineSearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid search text",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CSV or Translation API is unavailable or invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -99,48 +325,472 @@
     "schemas": {
       "ServiceStatus": {
         "type": "object",
-        "required": ["ok", "message", "service", "timestamp"],
+        "required": [
+          "ok",
+          "message",
+          "service",
+          "timestamp"
+        ],
         "properties": {
-          "ok": { "type": "boolean", "example": true },
-          "message": { "type": "string", "example": "success" },
-          "service": { "type": "string", "example": "cloudphone-backend" },
-          "timestamp": { "type": "string", "format": "date-time" }
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "success"
+          },
+          "service": {
+            "type": "string",
+            "example": "cloudphone-backend"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "HealthResponse": {
         "type": "object",
-        "required": ["ok", "service", "timestamp"],
+        "required": [
+          "ok",
+          "service",
+          "timestamp"
+        ],
         "properties": {
-          "ok": { "type": "boolean", "example": true },
-          "service": { "type": "string", "example": "cloudphone-backend" },
-          "timestamp": { "type": "string", "format": "date-time" }
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "service": {
+            "type": "string",
+            "example": "cloudphone-backend"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "TestSmsRequest": {
         "type": "object",
-        "required": ["to", "body"],
+        "required": [
+          "to",
+          "body"
+        ],
         "properties": {
-          "to": { "type": "string", "example": "+886912345678" },
-          "body": { "type": "string", "example": "This is a test SMS" }
+          "to": {
+            "type": "string",
+            "example": "+886912345678"
+          },
+          "body": {
+            "type": "string",
+            "example": "This is a test SMS"
+          }
         }
       },
       "TestSmsResponse": {
         "type": "object",
-        "required": ["ok", "sid", "status", "to"],
+        "required": [
+          "ok",
+          "sid",
+          "status",
+          "to"
+        ],
         "properties": {
-          "ok": { "type": "boolean", "example": true },
-          "sid": { "type": "string", "example": "SMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" },
-          "status": { "type": "string", "example": "queued" },
-          "to": { "type": "string", "example": "+886912345678" }
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "sid": {
+            "type": "string",
+            "example": "SMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          "status": {
+            "type": "string",
+            "example": "queued"
+          },
+          "to": {
+            "type": "string",
+            "example": "+886912345678"
+          }
         }
       },
       "ErrorResponse": {
         "type": "object",
         "properties": {
-          "ok": { "type": "boolean", "example": false },
-          "error": { "type": "string" },
-          "path": { "type": "string" }
+          "ok": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
         }
+      },
+      "MedicineChatMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "content"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000,
+            "pattern": "\\S"
+          }
+        }
+      },
+      "MedicineRecognition": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 6000,
+            "pattern": "\\S",
+            "description": "Unverified OCR or recognition text from a medicine package."
+          },
+          "medications": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "\\S"
+                },
+                "strength": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "\\S"
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Recognition-model score; this does not verify identity."
+                }
+              }
+            }
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "text"
+            ]
+          },
+          {
+            "required": [
+              "medications"
+            ]
+          }
+        ]
+      },
+      "MedicineChatRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S",
+            "description": "The user's current question."
+          },
+          "history": {
+            "type": "array",
+            "maxItems": 20,
+            "description": "Up to 10 successful recent turns, starting with user and ending with assistant in complete alternating pairs. The server does not store conversations.",
+            "items": {
+              "$ref": "#/components/schemas/MedicineChatMessage"
+            }
+          },
+          "recognition": {
+            "$ref": "#/components/schemas/MedicineRecognition"
+          },
+          "selectedMedicineId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "The licenseNumber from a search result. The backend reloads the source record and does not accept client-supplied medicine fields. This takes priority over automatic matching."
+          }
+        }
+      },
+      "MedicineAnswer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "answer",
+          "warnings",
+          "followUpQuestions"
+        ],
+        "properties": {
+          "answer": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000,
+            "pattern": "\\S",
+            "description": "Answer in American English (en-US), regardless of the input language."
+          },
+          "warnings": {
+            "type": "array",
+            "maxItems": 5,
+            "description": "Warnings in American English (en-US).",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300,
+              "pattern": "\\S"
+            }
+          },
+          "followUpQuestions": {
+            "type": "array",
+            "maxItems": 3,
+            "description": "Clarifying questions in American English (en-US).",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        }
+      },
+      "MedicineChatResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "model",
+          "reply",
+          "disclaimer",
+          "sources",
+          "catalog"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "model": {
+            "type": "string",
+            "nullable": true,
+            "description": "Null when no record or multiple candidates are found and Gemini is not called."
+          },
+          "reply": {
+            "$ref": "#/components/schemas/MedicineAnswer"
+          },
+          "disclaimer": {
+            "type": "string"
+          },
+          "sources": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "$ref": "#/components/schemas/MedicineRecord"
+            },
+            "description": "CSV fields retrieved by the backend and translated to English; these are not generated by Gemini."
+          },
+          "catalog": {
+            "$ref": "#/components/schemas/MedicineCatalogContext"
+          }
+        }
+      },
+      "MedicineRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "recordId": {
+            "type": "string",
+            "description": "Stable source identifier used as selectedMedicineId. Treat this as an opaque value."
+          },
+          "licenseNumber": {
+            "type": "string",
+            "description": "License identifier, translated for English display and used as the selected record ID."
+          },
+          "displayName": {
+            "type": "string",
+            "description": "English display name: the source English name when present, otherwise a Google translation of the Chinese name."
+          },
+          "englishName": {
+            "type": "string",
+            "description": "Source English name; empty means not provided."
+          },
+          "shape": {
+            "type": "string",
+            "description": "Shape translated to English; empty means not provided."
+          },
+          "dosageForm": {
+            "type": "string",
+            "description": "Special dosage form translated to English; empty means not provided."
+          },
+          "color": {
+            "type": "string",
+            "description": "Color translated to English; empty means not provided."
+          },
+          "odor": {
+            "type": "string",
+            "description": "Special odor translated to English; empty means not provided."
+          },
+          "scoreLine": {
+            "type": "string",
+            "description": "Score-line information translated to English; empty means not provided."
+          },
+          "size": {
+            "type": "string",
+            "description": "Appearance size. The source provides no unit; empty means not provided."
+          },
+          "imprint1": {
+            "type": "string",
+            "description": "Imprint 1 translated when needed; empty means not provided."
+          },
+          "imprint2": {
+            "type": "string",
+            "description": "Imprint 2 translated when needed; empty means not provided."
+          },
+          "imageUrl": {
+            "type": "string",
+            "description": "Source appearance-image URL. The image is not read by the assistant; empty means not provided."
+          }
+        },
+        "required": [
+          "recordId",
+          "licenseNumber",
+          "displayName",
+          "englishName",
+          "shape",
+          "dosageForm",
+          "color",
+          "odor",
+          "scoreLine",
+          "size",
+          "imprint1",
+          "imprint2",
+          "imageUrl"
+        ]
+      },
+      "MedicineCatalogContext": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fileName": {
+            "type": "string",
+            "enum": [
+              "42_2.csv"
+            ]
+          },
+          "recordCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "matchedCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "matched",
+              "ambiguous",
+              "not_found"
+            ]
+          }
+        },
+        "required": [
+          "fileName",
+          "recordCount",
+          "matchedCount",
+          "status"
+        ]
+      },
+      "MedicineSearchQuery": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "q": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200,
+            "pattern": "\\S.*\\S",
+            "description": "English/Chinese medicine name or license identifier; partial matching is supported."
+          }
+        },
+        "required": [
+          "q"
+        ]
+      },
+      "MedicineSearchResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "query": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "42_2.csv"
+            ]
+          },
+          "records": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "$ref": "#/components/schemas/MedicineRecord"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "recordCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ok",
+          "query",
+          "source",
+          "records",
+          "total",
+          "recordCount"
+        ]
       }
     }
   }

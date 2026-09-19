@@ -5,6 +5,10 @@ services:
       context: ./backend
       dockerfile: ./Dockerfile.dev
     restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - medicine-api
     env_file:
       - .env
     environment:
@@ -16,6 +20,7 @@ services:
       # - REDIS_HOST=redis
     volumes:
       - ./backend:/app/
+      - ./.env:/app/.env:ro
       - /app/node_modules/
     ports:
       - 3001:3001
@@ -69,10 +74,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     restart: unless-stopped
-    env_file:
-      - .env
     ports:
-      - "8080:80"
-    environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://dev-backend:3001}
+      - "8081:80"
