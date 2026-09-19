@@ -1,17 +1,16 @@
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 
 export default async function docsRoutes(app) {
   app.get("/api-docs/swagger.json", async () => {
-    const filePath = resolve(process.cwd(), "api-docs/swagger.json");
+    const filePath = new URL("../../api-docs/swagger.json", import.meta.url);
     const swagger = await readFile(filePath, "utf8");
     return JSON.parse(swagger);
   });
 
-  app.get("/api-docs", async () => {
+  app.get("/api-docs", async (_request, reply) => {
     const swaggerUrl = "/api-docs/swagger.json";
 
-    return `<!DOCTYPE html>
+    return reply.type("text/html; charset=utf-8").send(`<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -26,6 +25,7 @@ export default async function docsRoutes(app) {
   <body>
     <div id="swagger-ui"></div>
     <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-standalone-preset.js"></script>
     <script>
       window.ui = SwaggerUIBundle({
         url: '${swaggerUrl}',
@@ -37,7 +37,7 @@ export default async function docsRoutes(app) {
       });
     </script>
   </body>
-</html>`;
+</html>`);
   });
 
   app.get("/api-docs/", async (_request, reply) => {

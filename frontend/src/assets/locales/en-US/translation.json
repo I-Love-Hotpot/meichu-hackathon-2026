@@ -24,7 +24,11 @@
     "history": "Dose history",
     "myMedicines": "My medicines",
     "emergency": "Emergency info",
-    "language": "Language / 語言"
+    "language": "Language",
+    "medicineQuestions": "Medicine Q&A"
+  },
+  "chat": {
+    "title": "Medicine Q&A"
   },
   "language": {
     "title": "Language",

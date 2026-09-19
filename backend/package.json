@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node --test",
+    "sync:medicines": "node scripts/sync-medicines.js",
     "dev": "node --env-file-if-exists=.env --watch src/app.js",
     "start": "node --env-file-if-exists=.env src/app.js"
   },
