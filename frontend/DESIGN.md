@@ -39,11 +39,12 @@ Typography uses `Noto Sans TC`, then platform Chinese sans-serif fallbacks. Titl
 - `ArrowLeft` / `ArrowRight`: choose a binary option or adjust a quantity.
 - `Enter`: activate the focused item or confirm the current screen.
 - `Escape` / `SoftLeft`: trigger the left soft-key action.
-- `Backspace` / `SoftRight`: return, cancel, or close according to the right soft-key label.
 - Home numeric shortcuts: `1`–`4` open the matching menu item; `9` opens the reminder demo.
 - Pointer clicks are supported for desktop development, but all primary flows work from the keypad.
 
-The right soft key is always the escape path. Destructive and emergency information uses both text and color; color is never the only cue.
+The physical right soft key is not handled as a keyboard event. Every internal screen transition creates a native browser history entry with `history.pushState()`. RSK therefore invokes the platform's normal back action and the app restores the previous screen from `popstate`; only the root entry may be closed by the platform. The rendered right soft-key button calls the same `history.back()` path for desktop testing.
+
+Destructive and emergency information uses both text and color; color is never the only cue.
 
 ## Implemented flows
 

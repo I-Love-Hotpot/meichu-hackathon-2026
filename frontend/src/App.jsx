@@ -32,6 +32,8 @@ const SCREEN = {
   EMERGENCY: 'emergency',
 }
 
+const HISTORY_KEY = 'medaboutyou'
+const SCREEN_VALUES = new Set(Object.values(SCREEN))
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
 
 function useStoredDoses() {
@@ -53,7 +55,6 @@ function useStoredDoses() {
 
 export default function App() {
   const [screen, setScreen] = useState(SCREEN.HOME)
-  const [, setHistory] = useState([])
   const [focus, setFocus] = useState(0)
   const [decision, setDecision] = useState(0)
   const [quantity, setQuantity] = useState(1)
@@ -65,28 +66,39 @@ export default function App() {
   const shellRef = useRef(null)
 
   const navigate = (next) => {
-    setHistory((items) => [...items, screen])
+    window.history.pushState({ [HISTORY_KEY]: true, screen: next }, '')
     setScreen(next)
     setFocus(0)
   }
 
   const replace = (next) => {
+    window.history.replaceState({ [HISTORY_KEY]: true, screen: next }, '')
     setScreen(next)
     setFocus(0)
   }
 
   const goBack = () => {
-    setHistory((items) => {
-      if (!items.length) {
-        setScreen(SCREEN.HOME)
-        return []
-      }
-      const next = [...items]
-      setScreen(next.pop())
-      setFocus(0)
-      return next
-    })
+    window.history.back()
   }
+
+  useEffect(() => {
+    const entry = window.history.state
+
+    if (entry?.[HISTORY_KEY] && SCREEN_VALUES.has(entry.screen)) {
+      setScreen(entry.screen)
+    } else {
+      window.history.replaceState({ [HISTORY_KEY]: true, screen: SCREEN.HOME }, '')
+    }
+
+    const handlePopState = (event) => {
+      if (!event.state?.[HISTORY_KEY] || !SCREEN_VALUES.has(event.state.screen)) return
+      setScreen(event.state.screen)
+      setFocus(0)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   useEffect(() => {
     shellRef.current?.focus()
@@ -129,7 +141,6 @@ export default function App() {
           right: '離開',
           count: homeItems.length,
           onEnter: () => navigate(homeItems[focus].target),
-          onRight: () => setFocus(0),
           content: homeItems.map((item, index) => (
             <ListRow
               key={item.label}
@@ -143,7 +154,7 @@ export default function App() {
 
       case SCREEN.ADD_METHOD:
         return {
-          title: '新增藥品', count: 2, left: '選擇', right: '返回', onRight: goBack,
+          title: '新增藥品', count: 2, left: '選擇', right: '返回',
           onEnter: () => navigate(focus === 0 ? SCREEN.UPLOAD : SCREEN.MANUAL),
           content: <>
             <p className="prompt">選擇新增方式</p>
@@ -155,7 +166,7 @@ export default function App() {
 
       case SCREEN.UPLOAD:
         return {
-          title: '上傳藥袋照片', count: 1, left: '選擇', right: '返回', onRight: goBack,
+          title: '上傳藥袋照片', count: 1, left: '選擇', right: '返回',
           onEnter: () => fileInputRef.current?.click(),
           content: <>
             <p className="prompt">新增藥袋照片</p>
@@ -180,7 +191,7 @@ export default function App() {
 
       case SCREEN.MANUAL:
         return {
-          title: '鍵盤輸入', count: 1, left: '確認', right: '返回', onRight: goBack,
+          title: '鍵盤輸入', count: 1, left: '確認', right: '返回',
           onEnter: () => {
             if (manualName.trim()) navigate(SCREEN.CONFIRM)
           },
@@ -202,7 +213,7 @@ export default function App() {
 
       case SCREEN.RECOGNIZING:
         return {
-          title: '資訊辨識', count: 0, left: '', right: '取消', onRight: goBack,
+          title: '資訊辨識', count: 0, left: '', right: '取消',
           content: <div className="processing" aria-live="polite">
             <p className="prompt">正在辨識藥品資訊…</p>
             <div className="progress" aria-label="辨識進度"><span /></div>
@@ -212,7 +223,7 @@ export default function App() {
 
       case SCREEN.CONFIRM:
         return {
-          title: '確認藥品資訊', count: 3, left: '確認', right: '返回', onRight: goBack,
+          title: '確認藥品資訊', count: 3, left: '確認', right: '返回',
           onEnter: () => navigate(SCREEN.DAILY),
           content: <>
             <MedicineRow medicine={manualName || '降血壓藥'} detail="10 mg · 1 錠" selected={focus === 0} />
@@ -223,7 +234,7 @@ export default function App() {
 
       case SCREEN.DAILY:
         return {
-          title: '每日服用', count: 2, left: '確認', right: '返回', onRight: goBack,
+          title: '每日服用', count: 2, left: '確認', right: '返回',
           horizontal: true,
           onEnter: () => navigate(decision === 0 ? SCREEN.REMINDER_SETUP : SCREEN.ADD_COMPLETE),
           content: <>
@@ -235,7 +246,7 @@ export default function App() {
 
       case SCREEN.REMINDER_SETUP:
         return {
-          title: '設定提醒', count: 3, left: '完成', right: '返回', onRight: goBack,
+          title: '設定提醒', count: 3, left: '完成', right: '返回',
           onEnter: () => navigate(SCREEN.ADD_COMPLETE),
           content: <>
             <p className="prompt">選擇提醒時間</p>
@@ -248,7 +259,7 @@ export default function App() {
       case SCREEN.ADD_COMPLETE:
         return {
           title: '新增完成', count: 1, left: '回藥品', right: '主選單',
-          onEnter: () => replace(SCREEN.MEDICINES), onRight: () => replace(SCREEN.HOME),
+          onEnter: () => replace(SCREEN.MEDICINES),
           content: <>
             <FeedbackCard title="藥品已新增" />
             <p className="helper centered">下一次提醒：今天 20:00</p>
@@ -258,7 +269,7 @@ export default function App() {
       case SCREEN.REMINDER_ALERT:
         return {
           title: '用藥提醒', date: '09/19', time: '08:00', count: 2, left: '記錄', right: '稍後',
-          onRight: () => replace(SCREEN.HOME), onEnter: () => navigate(SCREEN.RECORD_COMPLETE),
+          onEnter: () => navigate(SCREEN.RECORD_COMPLETE),
           content: <>
             <MedicineRow medicine="降血壓藥" detail="1 錠 · 飯後" selected={focus === 0} />
             <QuantityPicker value={quantity} selected={focus === 1} onChange={adjustQuantity} />
@@ -269,7 +280,7 @@ export default function App() {
       case SCREEN.RECORD_TODAY:
         return {
           title: '記錄今日服藥', date: '09/19', time: '現在', count: doses.length,
-          left: '完成', right: '返回', onRight: goBack,
+          left: '完成', right: '返回',
           onLeft: () => navigate(SCREEN.RECORD_COMPLETE),
           onEnter: () => toggleDose(focus),
           content: doses.map((dose, index) => (
@@ -287,7 +298,7 @@ export default function App() {
       case SCREEN.RECORD_COMPLETE:
         return {
           title: '記錄完成', count: 1, left: '主選單', right: '返回',
-          onRight: goBack, onEnter: () => replace(SCREEN.HOME),
+          onEnter: () => replace(SCREEN.HOME),
           content: <>
             <FeedbackCard title="今日用藥已記錄" />
             <p className="helper centered">已完成 {doses.filter((dose) => dose.taken).length} / {doses.length} 項</p>
@@ -297,7 +308,7 @@ export default function App() {
       case SCREEN.HISTORY:
         return {
           title: '歷史紀錄', date: '09/19', time: '', count: historyDays.length,
-          left: '開啟', right: '返回', onRight: goBack, onEnter: () => navigate(SCREEN.HISTORY_DETAIL),
+          left: '開啟', right: '返回', onEnter: () => navigate(SCREEN.HISTORY_DETAIL),
           content: historyDays.map((day, index) => (
             <ListRow key={day.id} label={day.label} state={day.state} selected={focus === index} onClick={() => navigate(SCREEN.HISTORY_DETAIL)} />
           )),
@@ -305,7 +316,7 @@ export default function App() {
 
       case SCREEN.HISTORY_DETAIL:
         return {
-          title: '紀錄詳情', count: 2, left: '更新', right: '返回', onRight: goBack,
+          title: '紀錄詳情', count: 2, left: '更新', right: '返回',
           onLeft: () => navigate(SCREEN.UPDATE_RECORD), onEnter: () => navigate(SCREEN.UPDATE_RECORD),
           content: <>
             <p className="prompt">2026/09/19</p>
@@ -316,7 +327,7 @@ export default function App() {
 
       case SCREEN.UPDATE_RECORD:
         return {
-          title: '更新紀錄', count: 2, left: '儲存', right: '返回', onRight: goBack,
+          title: '更新紀錄', count: 2, left: '儲存', right: '返回',
           horizontal: true, onEnter: () => navigate(decision === 0 ? SCREEN.QUANTITY : SCREEN.HISTORY_DETAIL),
           content: <>
             <MedicineRow medicine="維生素 D" detail="12:10 · 1 粒" checked selected />
@@ -327,7 +338,7 @@ export default function App() {
 
       case SCREEN.QUANTITY:
         return {
-          title: '修改數量', count: 1, left: '儲存', right: '返回', onRight: goBack,
+          title: '修改數量', count: 1, left: '儲存', right: '返回',
           horizontal: true, onEnter: () => replace(SCREEN.HISTORY_DETAIL),
           content: <>
             <p className="prompt">調整本次服用數量</p>
@@ -338,7 +349,7 @@ export default function App() {
 
       case SCREEN.MEDICINES:
         return {
-          title: '我的藥品', count: medicines.length + 1, left: '開啟', right: '返回', onRight: goBack,
+          title: '我的藥品', count: medicines.length + 1, left: '開啟', right: '返回',
           onEnter: () => {
             if (focus === medicines.length) navigate(SCREEN.ADD_METHOD)
             else {
@@ -365,7 +376,7 @@ export default function App() {
 
       case SCREEN.MEDICINE_DETAIL:
         return {
-          title: '藥品詳情', count: 3, left: '修改', right: '返回', onRight: goBack,
+          title: '藥品詳情', count: 3, left: '修改', right: '返回',
           onLeft: () => navigate(SCREEN.QUANTITY), onEnter: () => navigate(SCREEN.QUANTITY),
           content: <>
             <MedicineRow medicine={selectedMedicine.name} detail={selectedMedicine.strength} selected={focus === 0} />
@@ -376,7 +387,7 @@ export default function App() {
 
       case SCREEN.EMERGENCY:
         return {
-          title: '緊急資訊', count: 1, left: '求助說明', right: '關閉', onRight: goBack,
+          title: '緊急資訊', count: 1, left: '求助說明', right: '關閉',
           emergency: true,
           onEnter: () => undefined,
           content: <>
@@ -393,7 +404,7 @@ export default function App() {
 
   const onLeft = screenConfig.onLeft || screenConfig.onEnter
   const onCenter = screenConfig.onEnter
-  const onRight = screenConfig.onRight || goBack
+  const onRight = goBack
 
   const handleKeyDown = (event) => {
     const isTextInput = event.target instanceof HTMLInputElement && event.target.type !== 'file'
@@ -431,10 +442,6 @@ export default function App() {
       case 'Escape':
       case 'SoftLeft':
         onLeft?.()
-        break
-      case 'Backspace':
-      case 'SoftRight':
-        if (!isTextInput) onRight?.()
         break
       default:
         return
