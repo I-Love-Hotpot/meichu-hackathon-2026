@@ -181,12 +181,12 @@ export async function recognizeMedicineImage(file, { signal } = {}) {
     payload?.ok !== true ||
     typeof payload.model !== "string" ||
     !isRecognitionEvidence(payload.recognition) ||
-    !["name", "text", "imprint", "none"].includes(payload.matchStrategy) ||
+    !["appearance", "none"].includes(payload.matchStrategy) ||
     !Array.isArray(payload.records) ||
     !payload.records.every(isMedicineRecord) ||
     !Number.isInteger(payload.total) ||
     !Number.isInteger(payload.recordCount) ||
-    payload.source !== "42_2.csv"
+    payload.source !== "MariaDB"
   ) {
     throw invalidResponse();
   }

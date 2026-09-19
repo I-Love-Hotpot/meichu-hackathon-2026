@@ -355,9 +355,9 @@
         "tags": [
           "Medicine"
         ],
-        "summary": "Extract visible medicine evidence and find CSV candidates",
+        "summary": "Recognize medicine candidates with the local model",
         "operationId": "recognizeMedicineImage",
-        "description": "Accepts one raw JPEG, PNG, or WebP image of at most 5 MiB. Gemini is instructed to transcribe only directly visible OCR text, medicine names, strengths, and pill imprints; it must not identify or guess a medicine. The backend then deterministically searches 42_2.csv. A structured medicine name is usable only when that name is also grounded in the returned visible OCR text. Name or visible-text matches take priority. Appearance-only matching is attempted only when a legible pill imprint was extracted, and requires an exact normalized imprint match. Color and shape alone never select a medicine. Candidate records are translated to English with Google Cloud Translation.",
+        "description": "Accepts one raw JPEG, PNG, or WebP image of at most 5 MiB. The bundled Python pipeline loads pill_detector.pt, detects the pill, compares color and shape, and returns up to three complete license numbers. Each license number is then looked up in MariaDB using the same repository as GET /api/medicine.",
         "requestBody": {
           "required": true,
           "content": {
@@ -386,7 +386,7 @@
         },
         "responses": {
           "200": {
-            "description": "Visible evidence and zero or more deterministic CSV candidates",
+            "description": "Local-model candidates and their MariaDB medicine records",
             "content": {
               "application/json": {
                 "schema": {
@@ -425,28 +425,8 @@
               }
             }
           },
-          "422": {
-            "description": "Gemini safety filtering prevented extraction",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Gemini or Translation API rate or quota limit",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
           "502": {
-            "description": "Gemini or Translation API connection or response error",
+            "description": "The local recognizer failed or returned invalid output",
             "content": {
               "application/json": {
                 "schema": {
@@ -456,7 +436,7 @@
             }
           },
           "503": {
-            "description": "CSV, Gemini, or Translation API is unavailable, invalid, or not configured",
+            "description": "The local recognizer, model, CSV, or MariaDB is unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -466,7 +446,7 @@
             }
           },
           "504": {
-            "description": "Gemini or Translation API timed out",
+            "description": "The local recognizer timed out",
             "content": {
               "application/json": {
                 "schema": {
@@ -1040,6 +1020,9 @@
           "records",
           "total",
           "recordCount"
+          ,
+          "medicines",
+          "inference"
         ]
       },
       "MedicineImageRecognitionEvidence": {
@@ -1132,7 +1115,7 @@
           },
           "model": {
             "type": "string",
-            "description": "Gemini model used only to transcribe visible evidence."
+            "description": "Local .pt model filename."
           },
           "recognition": {
             "$ref": "#/components/schemas/MedicineImageRecognitionEvidence"
@@ -1140,17 +1123,15 @@
           "matchStrategy": {
             "type": "string",
             "enum": [
-              "name",
-              "text",
-              "imprint",
+              "appearance",
               "none"
             ],
-            "description": "Deterministic CSV field used to produce candidates. Imprint matching uses an exact normalized visible imprint; color and shape alone are never used."
+            "description": "appearance when the local detector returned candidate license numbers; none when no candidate was found."
           },
           "source": {
             "type": "string",
             "enum": [
-              "42_2.csv"
+              "MariaDB"
             ]
           },
           "records": {
@@ -1168,7 +1149,35 @@
           "recordCount": {
             "type": "integer",
             "minimum": 0,
-            "description": "Number of source records loaded from the CSV."
+            "description": "Number of candidate IDs returned by the local model."
+          },
+          "medicines": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "required": [
+                "license_number",
+                "medicine"
+              ],
+              "properties": {
+                "license_number": {
+                  "type": "string"
+                },
+                "medicine": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/MedicineDatabaseRecord"
+                    }
+                  ],
+                  "nullable": true
+                }
+              }
+            }
+          },
+          "inference": {
+            "type": "object",
+            "description": "Raw normalized output from the bundled local inference pipeline."
           }
         }
       },

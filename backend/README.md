@@ -33,7 +33,7 @@ npm start
 - `POST /api/sms/test` (temporary, disabled by default)
 - `GET /api/medicine?license_number=許可證字號` (look up one medicine in MariaDB)
 - `GET /api/medicine/search?q=medicine-name` (CSV medicine search and English translation)
-- `POST /api/medicine/recognize` (raw JPEG/PNG/WebP evidence extraction and deterministic CSV matching)
+- `POST /api/medicine/recognize` (raw JPEG/PNG/WebP recognition with the local `.pt` model)
 - `POST /api/medicine/chat` (Gemini medicine assistant)
 
 The OpenAPI document is stored at `backend/api-docs/swagger.json` and is exposed at `http://localhost:3001/api-docs/swagger.json` during local development.
@@ -48,13 +48,16 @@ The interactive Swagger UI is available at `http://localhost:3001/api-docs`.
 - `TWILIO_AUTH_TOKEN`: Twilio Auth Token
 - `TWILIO_FROM_NUMBER`: Twilio phone number used as the SMS sender, in E.164 format
 - `ENABLE_TEST_SMS_ENDPOINT`: set to `true` to enable the temporary SMS test endpoint; default `false`
-- `GEMINI_API_KEY`: server-only Gemini API key used by medicine chat and image evidence extraction. A missing key returns HTTP 503 for image recognition and when chat resolves one medicine. Search and candidate clarification do not require a key.
+- `GEMINI_API_KEY`: server-only Gemini API key used by medicine chat. A missing key returns HTTP 503 when chat resolves one medicine. Search, local image recognition, and candidate clarification do not require a key.
 - `GEMINI_MODEL`: Gemini model ID supporting structured output; default `gemini-3.5-flash`. Set this to a model enabled for your API key.
 - `GEMINI_TIMEOUT_MS`: provider deadline in milliseconds, from `1000` to `120000`; default `30000`
 - `GEMINI_SYSTEM_PROMPT`: assistant identity, quoted as a single line in `.env`; the mandatory safety instructions still require every response to use American English (`en-US`), regardless of input language.
 - `GOOGLE_TRANSLATE_API_KEY`: server-only Google Cloud API key with Cloud Translation API enabled. Required when matched CSV fields contain Chinese text.
 - `GOOGLE_TRANSLATE_TIMEOUT_MS`: Translation API deadline from `1000` to `120000`; default `15000`.
 - `MEDICINE_CSV_PATH`: optional CSV path (relative paths resolve from the server working directory); empty uses `backend/resources/42_2.csv`. Invalid or unreadable files return HTTP 503, without falling back to model memory.
+- `MEDICINE_RECOGNIZER_SCRIPT`: optional path override for the Python recognizer. Empty uses the bundled `pill_inference_package/inference.py`.
+- `MEDICINE_RECOGNIZER_PYTHON`: Python executable used for the recognizer; default `python3`.
+- `MEDICINE_RECOGNIZER_TIMEOUT_MS`: recognition deadline from `1000` to `120000`; default `30000`.
 
 ## Look up a medicine by license number
 
@@ -104,7 +107,7 @@ This validates the source and refreshes the deployment copy. The backend reloads
 
 The CSV provides license identifiers, Chinese and English names, shape, color, score lines, appearance size, imprints, and image links. It does **not** provide indications, ingredient details, adverse effects, interactions, or dosage. Empty values mean “not provided,” and the size field has no stated unit.
 
-## Recognize visible medicine evidence from an image
+## Recognize a medicine image with the local model
 
 `POST /api/medicine/recognize` accepts the image bytes directly, not JSON,
 base64, or `multipart/form-data`. Set `Content-Type` to `image/jpeg`,
@@ -117,26 +120,21 @@ curl http://localhost:3001/api/medicine/recognize \
   --data-binary '@medicine.jpg'
 ```
 
-Gemini is used only as a constrained visual transcription step. It may return
-visible OCR text, medicine-name and strength strings, and directly legible pill
-imprints. It is explicitly instructed not to identify a medicine from appearance
-or model knowledge. The backend then performs deterministic matching against
-`42_2.csv`: visible names take priority, followed by OCR text. If only pill
-appearance is available, matching is disabled unless an imprint is legible; an
-imprint candidate must exactly match a normalized CSV imprint. Color and shape
-alone never select a medicine. A structured medicine name is ignored unless it
-also appears in the returned visible OCR text, preventing an appearance-based
-model guess from becoming a catalog query.
+The bundled Python pipeline loads `pill_inference_package/models/pill_detector.pt`,
+detects the pill, analyzes color and shape, and returns up to three complete
+`license_number` values. The backend looks up each ID in MariaDB using the same
+repository as `GET /api/medicine`. The response contains frontend-compatible
+records, the raw MariaDB lookup results in `medicines`, and normalized local
+pipeline details in `inference`. A successful request may return empty arrays
+when no pill or candidate is found.
 
-The response includes the unverified `recognition` evidence, `matchStrategy`, and
-up to eight translated `MedicineRecord` objects in `records`. Preserve each
-record's opaque `recordId` when sending `selectedMedicineId` to medicine chat;
-do not use the translated `licenseNumber` display value as an ID. A successful
-request may return an empty `records` array when no deterministic match exists.
+The backend writes the upload to a private temporary directory only for the
+duration of inference and removes it afterward. The image is not sent to Gemini,
+Google Translation, or another external recognition provider.
 
-The image is sent to the configured Gemini API. Matched Chinese CSV fields are
-sent to Google Cloud Translation before records are returned. The backend does
-not persist the image or recognition result.
+The Docker images install a CPU-only PyTorch runtime and all inference
+dependencies. The Python source, model, configuration, and CSV are bundled, so
+containers do not require a host-side Python installation or model mount.
 
 Enable Cloud Translation API in Google Cloud, create an API key restricted to that API, and add both server-side keys to `.env`. Never use a `VITE_` prefix for either key. Docker Compose reads the repository-root `.env`; local `npm run dev` reads `backend/.env`.
 

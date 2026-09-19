@@ -7,6 +7,7 @@ import {
   RECOGNITION_MEDIA_TYPES,
   recognizeMedicineImage,
 } from "../services/medicine-recognition.service.js";
+import { createMedicineRepository } from "../services/medicine-database.service.js";
 
 const document = JSON.parse(
   readFileSync(new URL("../../api-docs/swagger.json", import.meta.url), "utf8"),
@@ -29,8 +30,10 @@ export default async function medicineRoutes(
     ask = askMedicine,
     recognize = recognizeMedicineImage,
     translateRecords = translateMedicineRecords,
+    recognitionRepository = createMedicineRepository(),
   } = {},
 ) {
+  app.addHook("onClose", async () => recognitionRepository.close());
   app.addContentTypeParser(
     RECOGNITION_MEDIA_TYPES,
     { parseAs: "buffer" },
@@ -154,7 +157,10 @@ export default async function medicineRoutes(
       }
 
       try {
-        return await recognize({ image: request.body, mediaType });
+        return await recognize(
+          { image: request.body, mediaType },
+          { repository: recognitionRepository },
+        );
       } catch (error) {
         const known = error instanceof MedicineChatError;
         const statusCode = known ? error.statusCode : 502;
