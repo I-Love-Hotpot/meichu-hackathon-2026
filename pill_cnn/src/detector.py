@@ -50,13 +50,26 @@ class PillDetector:
         x2, y2 = min(width - 1, x2 + padding), min(height - 1, y2 + padding)
         return image[y1:y2, x1:x2]
 
+    @staticmethod
+    def _center_crop(image, fraction=0.58):
+        """Fallback for centred phone photos when YOLO returns no box."""
+        height, width = image.shape[:2]
+        side = max(1, int(min(height, width) * fraction))
+        center_x, center_y = width // 2, height // 2
+        x1 = max(0, center_x - side // 2)
+        y1 = max(0, center_y - side // 2)
+        x2 = min(width, x1 + side)
+        y2 = min(height, y1 + side)
+        return image[y1:y2, x1:x2]
+
     def detect_and_crop(self, image_path):
         image_path = Path(image_path)
         image_bgr = cv2.imread(str(image_path))
         if image_bgr is None:
             raise InputImageError(f"Unable to read image: {image_path}")
         model = self.load()
-        for confidence, source in ((self.confidence, "yolo_conf_0.25"), (self.low_confidence, "yolo_conf_0.10")):
+        for confidence in (self.confidence, self.low_confidence):
+            source = f"yolo_conf_{confidence:.2f}"
             try:
                 with third_party_stdout_to_stderr():
                     result = model.predict(
@@ -71,4 +84,6 @@ class PillDetector:
                 cropped_rgb = self._pick_crop(cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB), boxes)
                 if cropped_bgr.size:
                     return cropped_bgr, cropped_rgb, source
-        return None, None, "no_detection"
+        cropped_bgr = self._center_crop(image_bgr)
+        cropped_rgb = cv2.cvtColor(cropped_bgr, cv2.COLOR_BGR2RGB)
+        return cropped_bgr, cropped_rgb, "center_crop_fallback"

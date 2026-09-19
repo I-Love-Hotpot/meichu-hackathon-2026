@@ -3,11 +3,10 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from .appearance import analyze_appearance
-from .console import third_party_stdout_to_stderr
 from .detector import PillDetector
 from .errors import DatabaseLoadError, InferenceError, InputImageError, ModelLoadError
-from .matcher import match_appearance_top_three, prepare_database
+from .matcher import prepare_database
+from .pill_classifier import PillClassifier
 
 
 class PillInferencePipeline:
@@ -29,6 +28,11 @@ class PillInferencePipeline:
         )
         self.top_k = self.config["matching"].get("top_k", 3)
         self.database_path = self._resolve(self.config["database"]["path"])
+        classifier_config = self.config.get("classifier", {})
+        self.classifier = PillClassifier(
+            self._resolve(classifier_config.get("model_weights", "models/cnn/pill_classifier.pt")),
+            device=model_config.get("device", "cpu"),
+        )
         self.database = None
 
     def _resolve(self, value):
@@ -46,7 +50,7 @@ class PillInferencePipeline:
             else:
                 source_database = pd.read_excel(self.database_path)
             self.database = prepare_database(source_database)
-            required = {"用量排序", "批價碼", "學名", "顏色", "形狀"}
+            required = {"批價碼", "學名"}
             missing = required - set(self.database.columns)
             if missing:
                 raise DatabaseLoadError(f"Database is missing columns: {sorted(missing)}")
@@ -55,23 +59,28 @@ class PillInferencePipeline:
         except Exception as error:
             raise DatabaseLoadError(f"Could not load database: {error}") from error
 
+    def warm_up(self):
+        """Load and validate every runtime asset before accepting requests."""
+        self._load_database()
+        self.detector.load()
+        self.classifier._load()
+        for classifier_id in self.classifier.classes:
+            value = str(classifier_id).strip()
+            if len(value) != 6 or not value.isdigit():
+                raise ModelLoadError(
+                    f"Classifier ID {value!r} must contain exactly six digits"
+                )
+
     def predict_details(self, image_path):
         self._load_database()
         try:
             cropped_bgr, cropped_rgb, detection_source = self.detector.detect_and_crop(image_path)
             if cropped_bgr is None:
-                return {"status": "no_detection", "candidates": [], "features": {}, "detection_source": detection_source}
-            with third_party_stdout_to_stderr():
-                colors, shape = analyze_appearance(cropped_bgr, cropped_rgb)
-            candidates = match_appearance_top_three(
-                self.database, colors, shape, self.top_k
+                return {"candidates": []}
+            candidates = self.classifier.predict(
+                cropped_rgb, self.database, self.top_k
             )
-            return {
-                "status": "candidates_found" if candidates else "no_candidates",
-                "candidates": candidates,
-                "features": {"colors": colors, "shape": shape},
-                "detection_source": detection_source,
-            }
+            return {"candidates": candidates}
         except (DatabaseLoadError, InputImageError, ModelLoadError):
             raise
         except Exception as error:
@@ -79,10 +88,13 @@ class PillInferencePipeline:
 
     def predict(self, image_path):
         details = self.predict_details(image_path)
-        return {
-            "input_image": str(Path(image_path).resolve()),
-            "status": details["status"],
-            "detected_features": details["features"],
-            "predictions": details["candidates"],
-            "detection_source": details["detection_source"],
-        }
+        pill_ids = []
+        for candidate in details.get("candidates", [])[:3]:
+            pill_id = str(candidate["pill_id"]).strip()
+            if len(pill_id) != 6 or not pill_id.isdigit():
+                raise ModelLoadError(
+                    f"Classifier ID {pill_id!r} must contain exactly six digits"
+                )
+            if pill_id not in pill_ids:
+                pill_ids.append(pill_id)
+        return {"pill_id": pill_ids}

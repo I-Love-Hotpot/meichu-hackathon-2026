@@ -55,13 +55,16 @@ The interactive Swagger UI is available at `http://localhost:3001/api-docs`.
 - `GOOGLE_TRANSLATE_API_KEY`: server-only Google Cloud API key with Cloud Translation API enabled. Required when matched CSV fields contain Chinese text.
 - `GOOGLE_TRANSLATE_TIMEOUT_MS`: Translation API deadline from `1000` to `120000`; default `15000`.
 - `MEDICINE_CSV_PATH`: optional CSV path (relative paths resolve from the server working directory); empty uses `backend/resources/42_2.csv`. Invalid or unreadable files return HTTP 503, without falling back to model memory.
-- `MEDICINE_RECOGNIZER_SCRIPT`: optional path override for the Python recognizer. Empty uses the bundled `pill_inference_package/inference.py`.
-- `MEDICINE_RECOGNIZER_PYTHON`: Python executable used for the recognizer; default `python3`.
+- `MEDICINE_INFERENCE_URL`: internal URL of the separate inference service; local default `http://127.0.0.1:8000`, Compose value `http://pill-inference:8000`.
 - `MEDICINE_RECOGNIZER_TIMEOUT_MS`: recognition deadline from `1000` to `120000`; default `30000`.
 
 ## Look up a medicine by license number
 
-`GET /api/medicine` queries the `medicines` database table using the complete `license_number`. It returns the original stored values, with no translation or Gemini request. Leading and trailing whitespace in the query is ignored. If duplicate license identifiers exist, the row with the lowest `id` is returned.
+`GET /api/medicine` queries the `medicines` database table using the complete
+`license_number`. It returns every column from the matching database row, with
+no translation or Gemini request. Leading and trailing whitespace in the query
+is ignored. If duplicate license identifiers exist, the row with the lowest
+`id` is returned.
 
 ```bash
 curl --get http://localhost:3001/api/medicine \
@@ -77,17 +80,24 @@ curl --get http://localhost:3001/api/medicine \
     "chinese_name": "建功丸",
     "english_name": "CHENG KONG PILL",
     "shape": "其他",
+    "dosage_form": "",
     "color": "棕",
+    "odor": "",
     "score_line": "無",
     "size": "8",
     "imprint_1": "",
     "imprint_2": "",
-    "image_url": "https://mcp.fda.gov.tw/insert/shapeImg/89db57ae-5c85-47b8-9d74-351ecad719e6?c=o"
+    "image_url": "https://mcp.fda.gov.tw/insert/shapeImg/89db57ae-5c85-47b8-9d74-351ecad719e6?c=o",
+    "created_at": "2026-09-19T16:58:24.000Z"
   }
 }
 ```
 
-`id` is the database record number; `score_line` is the pill's score line (切線／刻痕). Missing values remain empty strings or `null`, as stored in MariaDB. `size` remains a string with no assumed unit. Multiple values or image links retain the source's `;;;` separator.
+`id` is the database record number; `score_line` is the pill's score line
+(切線／刻痕). Missing values remain empty strings or `null`, as stored in
+MariaDB. `size` remains a string with no assumed unit. Multiple values or image
+links retain the source's `;;;` separator. `created_at` is serialized as an ISO
+8601 timestamp in JSON.
 
 Errors use `{ "ok": false, "error": "message" }`: 400 for a missing, blank, repeated, or oversized license number (maximum 255 characters), or unexpected query parameters; 404 for no matching record; 503 for database connection/query failures. No database credentials or SQL details are returned.
 
@@ -120,21 +130,31 @@ curl http://localhost:3001/api/medicine/recognize \
   --data-binary '@medicine.jpg'
 ```
 
-The bundled Python pipeline loads `pill_inference_package/models/pill_detector.pt`,
-detects the pill, analyzes color and shape, and returns up to three complete
-`license_number` values. The backend looks up each ID in MariaDB using the same
-repository as `GET /api/medicine`. The response contains frontend-compatible
-records, the raw MariaDB lookup results in `medicines`, and normalized local
-pipeline details in `inference`. A successful request may return empty arrays
-when no pill or candidate is found.
+The separate `pill-inference` container loads `pill_detector.pt` and
+`pill_classifier.pt` once at startup, detects and crops the pill with YOLO,
+classifies it with MobileNetV3, and returns only
+`{ "pill_id": [...] }`, containing up to three six-digit numeric IDs. The Node
+backend forwards the image over the private Docker network and looks up each ID
+against the numeric portion of `license_number`. The response contains
+frontend-compatible `records`, complete `SELECT *` MariaDB rows in `medicines`,
+and the original numeric IDs in `pill_id` and `inference`. A successful request
+may return empty arrays when no pill or candidate is found.
 
-The backend writes the upload to a private temporary directory only for the
-duration of inference and removes it afterward. The image is not sent to Gemini,
+The inference container writes the upload to a private temporary directory only
+for the duration of inference and removes it afterward. The image is not sent to Gemini,
 Google Translation, or another external recognition provider.
 
-The Docker images install a CPU-only PyTorch runtime and all inference
-dependencies. The Python source, model, configuration, and CSV are bundled, so
-containers do not require a host-side Python installation or model mount.
+PyTorch, Ultralytics, OpenCV, the Python source, models, and inference CSV exist
+only in the inference image. The Node backend image contains no Python or
+PyTorch dependencies.
+
+Start the inference Compose project first so it creates the shared network, then
+start the existing application Compose project:
+
+```bash
+docker compose -f docker-compose.inference.yaml up --build -d
+docker compose up --build -d
+```
 
 Enable Cloud Translation API in Google Cloud, create an API key restricted to that API, and add both server-side keys to `.env`. Never use a `VITE_` prefix for either key. Docker Compose reads the repository-root `.env`; local `npm run dev` reads `backend/.env`.
 

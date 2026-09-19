@@ -51,7 +51,6 @@ def prepare_database(dataframe):
     normalized = pd.DataFrame({
         "用量排序": range(1, len(dataframe) + 1),
         "批價碼": output_ids,
-        "許可證字號": licenses,
         "學名": dataframe["中文品名"].fillna(dataframe.get("英文品名", "")).astype(str).str.strip(),
         "文字": [f"F:{text(front)}|B:{text(back)}" for front, back in zip(dataframe["標註一"], dataframe["標註二"])],
         "顏色": dataframe["顏色"].map(colors),
@@ -110,7 +109,6 @@ def match_appearance_top_three(dataframe, colors, shape, top_k=3):
         matches.append(
             {
                 "pill_id": pill_id,
-                "license_number": str(row.get("許可證字號", pill_id)).strip(),
                 "drug_name": str(row.get("學名", "")).strip(),
                 "appearance_score": 1.0,
                 "colors": sorted(database_colors),

@@ -5,7 +5,3 @@ node_modules
 *.log
 npm-debug.log*
 coverage
-pill_inference_package/__pycache__
-pill_inference_package/src/__pycache__
-pill_inference_package/.ultralytics
-pill_inference_package/outputs

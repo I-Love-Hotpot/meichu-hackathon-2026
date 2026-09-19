@@ -9,11 +9,13 @@ services:
       default:
         aliases:
           - medicine-api
+      medicine-inference:
     env_file:
       - .env
     environment:
       DB_HOST: dev-db
       DB_PORT: 3306
+      MEDICINE_INFERENCE_URL: http://pill-inference:8000
       # - REDIS_HOST=redis
     volumes:
       - ./backend:/app/
@@ -82,3 +84,8 @@ services:
       - /app/node_modules/
     ports:
       - "8080:5173"
+
+networks:
+  medicine-inference:
+    external: true
+    name: medicine-inference-net
