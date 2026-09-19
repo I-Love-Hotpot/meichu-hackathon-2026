@@ -33,9 +33,9 @@ export function MedicineRow({ medicine, detail, selected = false, checked = fals
   )
 }
 
-export function Decision({ selected = 0, left = '是', right = '否', onSelect }) {
+export function Decision({ selected = 0, left = 'Yes', right = 'No', onSelect, ariaLabel = 'Choice' }) {
   return (
-    <div className="decision" role="radiogroup" aria-label="選擇">
+    <div className="decision" role="radiogroup" aria-label={ariaLabel}>
       {[left, right].map((label, index) => (
         <button
           type="button"
@@ -53,12 +53,19 @@ export function Decision({ selected = 0, left = '是', right = '否', onSelect }
   )
 }
 
-export function QuantityPicker({ value, selected = true, onChange }) {
+export function QuantityPicker({
+  value,
+  selected = true,
+  onChange,
+  valueLabel = String(value),
+  decreaseLabel = 'Decrease',
+  increaseLabel = 'Increase',
+}) {
   return (
-    <div className={`quantity-picker${selected ? ' is-selected' : ''}`} aria-label={`數量 ${value} 錠`}>
-      <button type="button" tabIndex={-1} onClick={() => onChange(-0.5)} aria-label="減少 0.5 錠">−</button>
-      <strong>{value.toFixed(1)} 錠</strong>
-      <button type="button" tabIndex={-1} onClick={() => onChange(0.5)} aria-label="增加 0.5 錠">＋</button>
+    <div className={`quantity-picker${selected ? ' is-selected' : ''}`} aria-label={valueLabel}>
+      <button type="button" tabIndex={-1} onClick={() => onChange(-0.5)} aria-label={decreaseLabel}>−</button>
+      <strong>{valueLabel}</strong>
+      <button type="button" tabIndex={-1} onClick={() => onChange(0.5)} aria-label={increaseLabel}>＋</button>
     </div>
   )
 }
@@ -72,4 +79,3 @@ export function FeedbackCard({ danger = false, title, children }) {
     </div>
   )
 }
-

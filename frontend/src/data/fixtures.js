@@ -1,42 +1,42 @@
 export const medicines = [
   {
     id: 'pressure',
-    name: '降血壓藥',
     strength: '10 mg',
-    dose: '1 錠',
-    schedule: '每日 2 次',
-    usage: '飯後',
+    amount: 1,
+    unit: 'unitPill',
     reminders: ['08:00', '20:00'],
   },
   {
     id: 'vitamin-d',
-    name: '維生素 D',
     strength: '800 IU',
-    dose: '1 粒',
-    schedule: '每日 1 次',
-    usage: '午餐後',
+    amount: 1,
+    unit: 'unitCapsule',
     reminders: ['12:00'],
   },
   {
     id: 'lipid',
-    name: '降血脂藥',
     strength: '20 mg',
-    dose: '1 錠',
-    schedule: '每日 1 次',
-    usage: '晚餐後',
+    amount: 1,
+    unit: 'unitPill',
     reminders: ['20:00'],
   },
 ]
 
 export const todayDoses = [
-  { id: 'pressure-am', medicine: '降血壓藥', detail: '08:00 · 1 錠', taken: true },
-  { id: 'vitamin-d', medicine: '維生素 D', detail: '12:00 · 1 粒', taken: false },
-  { id: 'lipid-pm', medicine: '降血脂藥', detail: '20:00 · 1 錠', taken: false },
+  { id: 'pressure-am', medicineId: 'pressure', time: '08:00', amount: 1, unit: 'unitPill', taken: true },
+  { id: 'vitamin-d', medicineId: 'vitamin-d', time: '12:00', amount: 1, unit: 'unitCapsule', taken: false },
+  { id: 'lipid-pm', medicineId: 'lipid', time: '20:00', amount: 1, unit: 'unitPill', taken: false },
 ]
 
 export const historyDays = [
-  { id: 'today', label: '09/19  今天 · 2/3', state: 'focus' },
-  { id: 'yesterday', label: '09/18  昨天 · 3/3', state: 'success' },
-  { id: 'thursday', label: '09/17  週四 · 2/3', state: 'default' },
+  { id: 'today', date: '09/19', relative: 'today', done: 2, total: 3, state: 'focus' },
+  { id: 'yesterday', date: '09/18', relative: 'yesterday', done: 3, total: 3, state: 'success' },
+  { id: 'thursday', date: '09/17', relative: 'thursday', done: 2, total: 3, state: 'default' },
 ]
 
+// Matches the planned API response shape. Replace this fixture with search results.
+export const medicineCandidates = [
+  { id: 'amlodipine5', strength: '5 mg', confidence: 94 },
+  { id: 'norvasc5', strength: '5 mg', confidence: 87 },
+  { id: 'amlodipine10', strength: '10 mg', confidence: 72 },
+]

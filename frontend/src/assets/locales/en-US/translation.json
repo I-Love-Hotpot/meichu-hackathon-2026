@@ -1,0 +1,148 @@
+{
+  "common": {
+    "select": "Select",
+    "back": "Back",
+    "exit": "Exit",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "finish": "Done",
+    "open": "Open",
+    "update": "Update",
+    "save": "Save",
+    "close": "Close",
+    "later": "Later",
+    "record": "Record",
+    "now": "Now",
+    "mainMenu": "Home",
+    "medicines": "Medicines",
+    "noLeftAction": "No left soft-key action",
+    "noRightAction": "No right soft-key action"
+  },
+  "home": {
+    "title": "Main menu",
+    "recordToday": "Record today's doses",
+    "history": "Dose history",
+    "myMedicines": "My medicines",
+    "emergency": "Emergency info",
+    "language": "Language / 語言"
+  },
+  "language": {
+    "title": "Language",
+    "prompt": "Choose display language",
+    "zhTW": "繁體中文",
+    "enUS": "English (US)",
+    "current": "Current: {{language}}"
+  },
+  "add": {
+    "title": "Add medicine",
+    "chooseMethod": "Choose how to add it",
+    "photo": "Take or choose photo",
+    "keyboard": "Type medicine name",
+    "navigationHelp": "Use arrows, then press Enter",
+    "uploadTitle": "Upload label",
+    "newPhoto": "Add a label photo",
+    "pickerHelp": "Opens the system camera or photo picker",
+    "noPreview": "Uploads directly without a preview",
+    "manualTitle": "Type medicine",
+    "medicineName": "Medicine name",
+    "medicinePlaceholder": "Example: blood pressure med",
+    "manualHelp": "Number keys are supported",
+    "recognizingTitle": "Recognizing",
+    "recognizing": "Reading medicine details…",
+    "recognizingHelp": "Finding the name, dose, and directions",
+    "matchesTitle": "Matches",
+    "matchesPrompt": "Choose the closest medicine",
+    "matchesHelp": "API results (mock data for now)",
+    "confidence": "{{value}}% match",
+    "dailyTitle": "Daily use",
+    "dailyQuestion": "Do you take this every day?",
+    "yes": "Yes",
+    "no": "No",
+    "binaryHelp": "Use ← →, then press Enter",
+    "reminderTitle": "Set reminders",
+    "chooseReminder": "Choose reminder times",
+    "breakfast": "08:00  After breakfast",
+    "dinner": "20:00  After dinner",
+    "addReminder": "＋ Add reminder",
+    "completeTitle": "Medicine added",
+    "added": "Medicine saved",
+    "nextReminder": "Next reminder: Today at 20:00"
+  },
+  "dose": {
+    "reminderTitle": "Dose reminder",
+    "recordTodayTitle": "Today's doses",
+    "enterToRecord": "Press Enter to record",
+    "completeTitle": "Recorded",
+    "recorded": "Today's doses were recorded",
+    "progress": "Completed {{done}} / {{total}}",
+    "quantityTitle": "Edit quantity",
+    "quantityPrompt": "Set the quantity taken",
+    "quantityHelp": "← → changes 0.5; type a number directly, * is decimal",
+    "quantityValue": "{{value}} pill",
+    "decrease": "Decrease by 0.5 pill",
+    "increase": "Increase by 0.5 pill",
+    "unitPill": "pill",
+    "unitCapsule": "capsule",
+    "detail": "{{time}} · {{amount}} {{unit}}"
+  },
+  "history": {
+    "title": "Dose history",
+    "detailTitle": "Dose details",
+    "updateTitle": "Update record",
+    "changeQuantity": "Change the quantity taken?",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thursday": "Thursday",
+    "dayLabel": "{{date}}  {{relative}} · {{done}}/{{total}}"
+  },
+  "medicines": {
+    "title": "My medicines",
+    "detailTitle": "Medicine details",
+    "add": "＋ Add medicine",
+    "usage": "Directions: {{usage}}",
+    "reminders": "Reminders: {{times}}",
+    "pressure": {
+      "name": "Blood pressure med",
+      "schedule": "Twice daily",
+      "usage": "After meals"
+    },
+    "vitamin-d": {
+      "name": "Vitamin D",
+      "schedule": "Once daily",
+      "usage": "After lunch"
+    },
+    "lipid": {
+      "name": "Cholesterol med",
+      "schedule": "Once daily",
+      "usage": "After dinner"
+    }
+  },
+  "candidates": {
+    "amlodipine5": "Amlodipine 5 mg",
+    "norvasc5": "Norvasc 5 mg",
+    "amlodipine10": "Amlodipine 10 mg"
+  },
+  "emergency": {
+    "title": "Emergency info",
+    "help": "Help",
+    "cardTitle": "Medication emergency",
+    "allergy": "Allergy: ",
+    "allergyValue": "Penicillin",
+    "currentMedicine": "Current: Blood pressure med 10 mg"
+  },
+  "template": {
+    "about": "About",
+    "settings": "Settings",
+    "privacy": "Privacy",
+    "language": "Language"
+  },
+  "Cloud Phone": "Cloud Phone",
+  "React Demo": "React Demo",
+  "About": "About",
+  "Settings": "Settings",
+  "Privacy": "Privacy",
+  "Select": "Select",
+  "Language": "Language",
+  "Home_Description": "This is a Cloud Phone sample built with React.",
+  "About_Description": "Cloud Phone enables modern applications on feature phones."
+}

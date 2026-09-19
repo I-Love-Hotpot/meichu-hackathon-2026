@@ -1,0 +1,148 @@
+{
+  "common": {
+    "select": "選擇",
+    "back": "返回",
+    "exit": "離開",
+    "confirm": "確認",
+    "cancel": "取消",
+    "finish": "完成",
+    "open": "開啟",
+    "update": "更新",
+    "save": "儲存",
+    "close": "關閉",
+    "later": "稍後",
+    "record": "記錄",
+    "now": "現在",
+    "mainMenu": "主選單",
+    "medicines": "回藥品",
+    "noLeftAction": "無左軟鍵",
+    "noRightAction": "無右軟鍵"
+  },
+  "home": {
+    "title": "主選單",
+    "recordToday": "記錄今日服藥",
+    "history": "歷史紀錄",
+    "myMedicines": "我的藥品",
+    "emergency": "緊急資訊",
+    "language": "語言 / Language"
+  },
+  "language": {
+    "title": "語言",
+    "prompt": "選擇顯示語言",
+    "zhTW": "繁體中文",
+    "enUS": "English (US)",
+    "current": "目前語言：{{language}}"
+  },
+  "add": {
+    "title": "新增藥品",
+    "chooseMethod": "選擇新增方式",
+    "photo": "拍照或選擇照片",
+    "keyboard": "鍵盤輸入",
+    "navigationHelp": "方向鍵移動，Enter 確認",
+    "uploadTitle": "上傳藥袋照片",
+    "newPhoto": "新增藥袋照片",
+    "pickerHelp": "開啟系統相機／照片選擇器",
+    "noPreview": "選取後直接上傳，不顯示預覽",
+    "manualTitle": "鍵盤輸入",
+    "medicineName": "輸入藥品名稱",
+    "medicinePlaceholder": "例如：降血壓藥",
+    "manualHelp": "可使用數字鍵輸入",
+    "recognizingTitle": "資訊辨識",
+    "recognizing": "正在辨識藥品資訊…",
+    "recognizingHelp": "辨識藥名、劑量與用法",
+    "matchesTitle": "可能的藥物清單",
+    "matchesPrompt": "請選擇最符合的藥物",
+    "matchesHelp": "API 搜尋結果（目前為假資料）",
+    "confidence": "相似度 {{value}}%",
+    "dailyTitle": "每日服用",
+    "dailyQuestion": "這個藥每天都要服用嗎？",
+    "yes": "是",
+    "no": "否",
+    "binaryHelp": "← → 選擇，Enter 確認",
+    "reminderTitle": "設定提醒",
+    "chooseReminder": "選擇提醒時間",
+    "breakfast": "08:00  早餐後",
+    "dinner": "20:00  晚餐後",
+    "addReminder": "＋ 新增提醒",
+    "completeTitle": "新增完成",
+    "added": "藥品已新增",
+    "nextReminder": "下一次提醒：今天 20:00"
+  },
+  "dose": {
+    "reminderTitle": "用藥提醒",
+    "recordTodayTitle": "記錄今日服藥",
+    "enterToRecord": "Enter 記錄已服用",
+    "completeTitle": "記錄完成",
+    "recorded": "今日用藥已記錄",
+    "progress": "已完成 {{done}} / {{total}} 項",
+    "quantityTitle": "修改數量",
+    "quantityPrompt": "調整本次服用數量",
+    "quantityHelp": "← → 每次調整 0.5；數字鍵直接輸入，* 為小數點",
+    "quantityValue": "{{value}} 錠",
+    "decrease": "減少 0.5 錠",
+    "increase": "增加 0.5 錠",
+    "unitPill": "錠",
+    "unitCapsule": "粒",
+    "detail": "{{time}} · {{amount}} {{unit}}"
+  },
+  "history": {
+    "title": "歷史紀錄",
+    "detailTitle": "紀錄詳情",
+    "updateTitle": "更新紀錄",
+    "changeQuantity": "是否修改服用數量？",
+    "today": "今天",
+    "yesterday": "昨天",
+    "thursday": "週四",
+    "dayLabel": "{{date}}  {{relative}} · {{done}}/{{total}}"
+  },
+  "medicines": {
+    "title": "我的藥品",
+    "detailTitle": "藥品詳情",
+    "add": "＋ 新增藥品",
+    "usage": "用法：{{usage}}",
+    "reminders": "提醒：{{times}}",
+    "pressure": {
+      "name": "降血壓藥",
+      "schedule": "每日 2 次",
+      "usage": "飯後"
+    },
+    "vitamin-d": {
+      "name": "維生素 D",
+      "schedule": "每日 1 次",
+      "usage": "午餐後"
+    },
+    "lipid": {
+      "name": "降血脂藥",
+      "schedule": "每日 1 次",
+      "usage": "晚餐後"
+    }
+  },
+  "candidates": {
+    "amlodipine5": "脈優錠 5 毫克",
+    "norvasc5": "諾壓錠 5 毫克",
+    "amlodipine10": "Amlodipine 10 mg"
+  },
+  "emergency": {
+    "title": "緊急資訊",
+    "help": "求助說明",
+    "cardTitle": "用藥緊急資訊",
+    "allergy": "過敏：",
+    "allergyValue": "盤尼西林",
+    "currentMedicine": "目前用藥：降血壓藥 10 mg"
+  },
+  "template": {
+    "about": "關於",
+    "settings": "設定",
+    "privacy": "隱私權",
+    "language": "語言"
+  },
+  "Cloud Phone": "Cloud Phone",
+  "React Demo": "React Demo",
+  "About": "關於",
+  "Settings": "設定",
+  "Privacy": "隱私權",
+  "Select": "選擇",
+  "Language": "語言",
+  "Home_Description": "這是使用 React 建立的 Cloud Phone 範例。",
+  "About_Description": "Cloud Phone 讓功能型手機也能執行現代化應用程式。"
+}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import DeviceShell from './components/DeviceShell.jsx'
 import {
   Decision,
@@ -7,7 +8,12 @@ import {
   MedicineRow,
   QuantityPicker,
 } from './components/Controls.jsx'
-import { historyDays, medicines, todayDoses as initialDoses } from './data/fixtures.js'
+import {
+  historyDays,
+  medicineCandidates,
+  medicines,
+  todayDoses as initialDoses,
+} from './data/fixtures.js'
 import './app.css'
 
 const SCREEN = {
@@ -16,7 +22,7 @@ const SCREEN = {
   UPLOAD: 'upload',
   MANUAL: 'manual',
   RECOGNIZING: 'recognizing',
-  CONFIRM: 'confirm',
+  MATCHES: 'matches',
   DAILY: 'daily',
   REMINDER_SETUP: 'reminder-setup',
   ADD_COMPLETE: 'add-complete',
@@ -30,6 +36,7 @@ const SCREEN = {
   MEDICINES: 'medicines',
   MEDICINE_DETAIL: 'medicine-detail',
   EMERGENCY: 'emergency',
+  LANGUAGE: 'language',
 }
 
 const HISTORY_KEY = 'medaboutyou'
@@ -40,7 +47,10 @@ function useStoredDoses() {
   const [doses, setDoses] = useState(() => {
     try {
       const saved = localStorage.getItem('medaboutyou-today-doses')
-      return saved ? JSON.parse(saved) : initialDoses
+      const parsed = saved ? JSON.parse(saved) : null
+      const isCurrentSchema = Array.isArray(parsed)
+        && parsed.every((dose) => dose.medicineId && dose.time && dose.unit)
+      return isCurrentSchema ? parsed : initialDoses
     } catch {
       return initialDoses
     }
@@ -54,16 +64,35 @@ function useStoredDoses() {
 }
 
 export default function App() {
+  const { t, i18n } = useTranslation()
   const [screen, setScreen] = useState(SCREEN.HOME)
   const [focus, setFocus] = useState(0)
   const [decision, setDecision] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [manualName, setManualName] = useState('')
   const [selectedMedicine, setSelectedMedicine] = useState(medicines[0])
+  const [selectedCandidate, setSelectedCandidate] = useState(medicineCandidates[0])
   const [uploadedName, setUploadedName] = useState('')
   const [doses, setDoses] = useStoredDoses()
   const fileInputRef = useRef(null)
   const shellRef = useRef(null)
+  const quantityBufferRef = useRef('')
+  const quantityTimerRef = useRef(null)
+
+  const currentLanguage = i18n.resolvedLanguage || i18n.language
+  const medicineName = (id) => t(`medicines.${id}.name`)
+  const medicineSchedule = (id) => t(`medicines.${id}.schedule`)
+  const medicineUsage = (id) => t(`medicines.${id}.usage`)
+  const doseDetail = ({ time, amount, unit }) => t('dose.detail', {
+    time,
+    amount,
+    unit: t(`dose.${unit}`),
+  })
+  const quantityLabels = {
+    valueLabel: t('dose.quantityValue', { value: quantity.toFixed(1) }),
+    decreaseLabel: t('dose.decrease'),
+    increaseLabel: t('dose.increase'),
+  }
 
   const navigate = (next) => {
     window.history.pushState({ [HISTORY_KEY]: true, screen: next }, '')
@@ -102,19 +131,53 @@ export default function App() {
 
   useEffect(() => {
     shellRef.current?.focus()
+    quantityBufferRef.current = ''
+    window.clearTimeout(quantityTimerRef.current)
   }, [screen])
+
+  useEffect(() => {
+    document.documentElement.lang = currentLanguage
+  }, [currentLanguage])
+
+  useEffect(() => () => window.clearTimeout(quantityTimerRef.current), [])
 
   useEffect(() => {
     if (screen !== SCREEN.RECOGNIZING) return undefined
     const timer = window.setTimeout(() => {
-      setScreen(SCREEN.CONFIRM)
+      window.history.replaceState({ [HISTORY_KEY]: true, screen: SCREEN.MATCHES }, '')
+      setScreen(SCREEN.MATCHES)
       setFocus(0)
     }, 1200)
     return () => window.clearTimeout(timer)
   }, [screen])
 
   const adjustQuantity = (amount) => {
-    setQuantity((current) => clamp(current + amount, 0.5, 5))
+    quantityBufferRef.current = ''
+    setQuantity((current) => clamp(current + amount, 0.5, 99.5))
+  }
+
+  const enterQuantityDigit = (key) => {
+    const character = key === '*' ? '.' : key
+    let next = quantityBufferRef.current
+
+    if (character === '.') {
+      if (next.includes('.')) return
+      next = `${next || '0'}.`
+    } else {
+      next = next === '0' ? character : `${next}${character}`
+    }
+
+    next = next.slice(0, 4)
+    const parsed = Number(next)
+    if (Number.isFinite(parsed) && parsed > 0 && parsed <= 99.5) {
+      setQuantity(Math.round(parsed * 10) / 10)
+    }
+
+    quantityBufferRef.current = next
+    window.clearTimeout(quantityTimerRef.current)
+    quantityTimerRef.current = window.setTimeout(() => {
+      quantityBufferRef.current = ''
+    }, 1200)
   }
 
   const toggleDose = (index) => {
@@ -124,11 +187,12 @@ export default function App() {
   }
 
   const homeItems = useMemo(() => [
-    { label: '記錄今日服藥', target: SCREEN.RECORD_TODAY },
-    { label: '歷史紀錄', target: SCREEN.HISTORY },
-    { label: '我的藥品', target: SCREEN.MEDICINES },
-    { label: '緊急資訊', target: SCREEN.EMERGENCY, state: 'danger' },
-  ], [])
+    { label: t('home.recordToday'), target: SCREEN.RECORD_TODAY },
+    { label: t('home.history'), target: SCREEN.HISTORY },
+    { label: t('home.myMedicines'), target: SCREEN.MEDICINES },
+    { label: t('home.emergency'), target: SCREEN.EMERGENCY, state: 'danger' },
+    { label: t('home.language'), target: SCREEN.LANGUAGE },
+  ], [t])
 
   const move = (delta, count) => setFocus((current) => (current + delta + count) % count)
 
@@ -136,41 +200,54 @@ export default function App() {
     switch (screen) {
       case SCREEN.HOME:
         return {
-          title: '主選單',
-          left: '選擇',
-          right: '離開',
+          title: t('home.title'),
+          left: t('common.select'),
+          right: t('common.exit'),
           count: homeItems.length,
           onEnter: () => navigate(homeItems[focus].target),
-          content: homeItems.map((item, index) => (
-            <ListRow
-              key={item.label}
-              label={`${index + 1}  ${item.label}`}
-              state={item.state}
-              selected={focus === index}
-              onClick={() => navigate(item.target)}
-            />
-          )),
+          onNumber: (number) => {
+            if (number === 9) {
+              navigate(SCREEN.REMINDER_ALERT)
+              return
+            }
+            if (homeItems[number - 1]) navigate(homeItems[number - 1].target)
+          },
+          content: <div className="dense-list">
+            {homeItems.map((item, index) => (
+              <ListRow
+                key={item.label}
+                label={`${index + 1}  ${item.label}`}
+                state={item.state}
+                selected={focus === index}
+                onClick={() => navigate(item.target)}
+              />
+            ))}
+          </div>,
         }
 
       case SCREEN.ADD_METHOD:
         return {
-          title: '新增藥品', count: 2, left: '選擇', right: '返回',
+          title: t('add.title'), count: 2, left: t('common.select'), right: t('common.back'),
           onEnter: () => navigate(focus === 0 ? SCREEN.UPLOAD : SCREEN.MANUAL),
+          onNumber: (number) => {
+            if (number === 1) navigate(SCREEN.UPLOAD)
+            if (number === 2) navigate(SCREEN.MANUAL)
+          },
           content: <>
-            <p className="prompt">選擇新增方式</p>
-            <ListRow label="拍照或選擇照片" selected={focus === 0} onClick={() => navigate(SCREEN.UPLOAD)} />
-            <ListRow label="鍵盤輸入" selected={focus === 1} onClick={() => navigate(SCREEN.MANUAL)} />
-            <p className="helper">方向鍵移動，Enter 確認</p>
+            <p className="prompt">{t('add.chooseMethod')}</p>
+            <ListRow label={`1  ${t('add.photo')}`} selected={focus === 0} onClick={() => navigate(SCREEN.UPLOAD)} />
+            <ListRow label={`2  ${t('add.keyboard')}`} selected={focus === 1} onClick={() => navigate(SCREEN.MANUAL)} />
+            <p className="helper">{t('add.navigationHelp')}</p>
           </>,
         }
 
       case SCREEN.UPLOAD:
         return {
-          title: '上傳藥袋照片', count: 1, left: '選擇', right: '返回',
+          title: t('add.uploadTitle'), count: 1, left: t('common.select'), right: t('common.back'),
           onEnter: () => fileInputRef.current?.click(),
           content: <>
-            <p className="prompt">新增藥袋照片</p>
-            <ListRow label="拍照或選擇照片" selected onClick={() => fileInputRef.current?.click()} />
+            <p className="prompt">{t('add.newPhoto')}</p>
+            <ListRow label={t('add.photo')} selected onClick={() => fileInputRef.current?.click()} />
             <input
               ref={fileInputRef}
               className="visually-hidden"
@@ -185,109 +262,154 @@ export default function App() {
                 event.target.value = ''
               }}
             />
-            <p className="helper">開啟系統相機／照片選擇器<br />選取後直接上傳，不顯示預覽</p>
+            <p className="helper">{t('add.pickerHelp')}<br />{t('add.noPreview')}</p>
           </>,
         }
 
       case SCREEN.MANUAL:
         return {
-          title: '鍵盤輸入', count: 1, left: '確認', right: '返回',
+          title: t('add.manualTitle'), count: 1, left: t('common.confirm'), right: t('common.back'),
           onEnter: () => {
-            if (manualName.trim()) navigate(SCREEN.CONFIRM)
+            if (manualName.trim()) navigate(SCREEN.RECOGNIZING)
           },
           content: <form className="manual-form" onSubmit={(event) => {
             event.preventDefault()
-            if (manualName.trim()) navigate(SCREEN.CONFIRM)
+            if (manualName.trim()) navigate(SCREEN.RECOGNIZING)
           }}>
-            <label htmlFor="medicine-name">輸入藥品名稱</label>
+            <label htmlFor="medicine-name">{t('add.medicineName')}</label>
             <input
               id="medicine-name"
               value={manualName}
-              placeholder="例如：降血壓藥"
+              placeholder={t('add.medicinePlaceholder')}
               onChange={(event) => setManualName(event.target.value)}
               autoFocus
             />
-            <p className="helper">可使用數字鍵輸入<br />Enter 確認</p>
+            <p className="helper">{t('add.manualHelp')}<br />Enter</p>
           </form>,
         }
 
       case SCREEN.RECOGNIZING:
         return {
-          title: '資訊辨識', count: 0, left: '', right: '取消',
+          title: t('add.recognizingTitle'), count: 0, left: '', right: t('common.cancel'),
           content: <div className="processing" aria-live="polite">
-            <p className="prompt">正在辨識藥品資訊…</p>
-            <div className="progress" aria-label="辨識進度"><span /></div>
-            <p className="helper">{uploadedName || '辨識藥名、劑量與用法'}</p>
+            <p className="prompt">{t('add.recognizing')}</p>
+            <div className="progress" aria-label={t('add.recognizingTitle')}><span /></div>
+            <p className="helper">{uploadedName || manualName || t('add.recognizingHelp')}</p>
           </div>,
         }
 
-      case SCREEN.CONFIRM:
+      case SCREEN.MATCHES:
         return {
-          title: '確認藥品資訊', count: 3, left: '確認', right: '返回',
-          onEnter: () => navigate(SCREEN.DAILY),
+          title: t('add.matchesTitle'), count: medicineCandidates.length,
+          left: t('common.confirm'), right: t('common.back'),
+          onEnter: () => {
+            setSelectedCandidate(medicineCandidates[focus])
+            navigate(SCREEN.DAILY)
+          },
+          onNumber: (number) => {
+            const candidate = medicineCandidates[number - 1]
+            if (!candidate) return
+            setSelectedCandidate(candidate)
+            navigate(SCREEN.DAILY)
+          },
           content: <>
-            <MedicineRow medicine={manualName || '降血壓藥'} detail="10 mg · 1 錠" selected={focus === 0} />
-            <ListRow label="用法：飯後" selected={focus === 1} />
-            <ListRow label="頻率：每日 2 次" selected={focus === 2} />
+            {medicineCandidates.map((candidate, index) => (
+              <MedicineRow
+                key={candidate.id}
+                medicine={`${index + 1}  ${t(`candidates.${candidate.id}`)}`}
+                detail={`${candidate.strength} · ${t('add.confidence', { value: candidate.confidence })}`}
+                selected={focus === index}
+                onClick={() => {
+                  setSelectedCandidate(candidate)
+                  navigate(SCREEN.DAILY)
+                }}
+              />
+            ))}
+            <p className="helper">{t('add.matchesHelp')}</p>
           </>,
         }
 
       case SCREEN.DAILY:
         return {
-          title: '每日服用', count: 2, left: '確認', right: '返回',
+          title: t('add.dailyTitle'), count: 2, left: t('common.confirm'), right: t('common.back'),
           horizontal: true,
           onEnter: () => navigate(decision === 0 ? SCREEN.REMINDER_SETUP : SCREEN.ADD_COMPLETE),
           content: <>
-            <p className="prompt">這個藥每天都要服用嗎？</p>
-            <Decision selected={decision} onSelect={setDecision} />
-            <p className="helper">← → 選擇，Enter 確認</p>
+            <p className="prompt">{t('add.dailyQuestion')}</p>
+            <Decision
+              selected={decision}
+              left={t('add.yes')}
+              right={t('add.no')}
+              onSelect={setDecision}
+              ariaLabel={t('common.select')}
+            />
+            <p className="helper">{t('add.binaryHelp')}</p>
           </>,
         }
 
       case SCREEN.REMINDER_SETUP:
         return {
-          title: '設定提醒', count: 3, left: '完成', right: '返回',
+          title: t('add.reminderTitle'), count: 3, left: t('common.finish'), right: t('common.back'),
           onEnter: () => navigate(SCREEN.ADD_COMPLETE),
+          onNumber: (number) => {
+            if (number >= 1 && number <= 3) setFocus(number - 1)
+          },
           content: <>
-            <p className="prompt">選擇提醒時間</p>
-            {['08:00  早餐後', '20:00  晚餐後', '＋ 新增提醒'].map((label, index) => (
-              <ListRow key={label} label={label} selected={focus === index} onClick={() => setFocus(index)} />
+            <p className="prompt">{t('add.chooseReminder')}</p>
+            {[t('add.breakfast'), t('add.dinner'), t('add.addReminder')].map((label, index) => (
+              <ListRow key={label} label={`${index + 1}  ${label}`} selected={focus === index} onClick={() => setFocus(index)} />
             ))}
           </>,
         }
 
       case SCREEN.ADD_COMPLETE:
         return {
-          title: '新增完成', count: 1, left: '回藥品', right: '主選單',
+          title: t('add.completeTitle'), count: 1,
+          left: t('common.medicines'), right: t('common.back'),
           onEnter: () => replace(SCREEN.MEDICINES),
           content: <>
-            <FeedbackCard title="藥品已新增" />
-            <p className="helper centered">下一次提醒：今天 20:00</p>
+            <FeedbackCard title={t('add.added')}>
+              <span>{t(`candidates.${selectedCandidate.id}`)}</span>
+            </FeedbackCard>
+            <p className="helper centered">{t('add.nextReminder')}</p>
           </>,
         }
 
       case SCREEN.REMINDER_ALERT:
         return {
-          title: '用藥提醒', date: '09/19', time: '08:00', count: 2, left: '記錄', right: '稍後',
+          title: t('dose.reminderTitle'), date: '09/19', time: '08:00', count: 2,
+          left: t('common.record'), right: t('common.later'),
           onEnter: () => navigate(SCREEN.RECORD_COMPLETE),
           content: <>
-            <MedicineRow medicine="降血壓藥" detail="1 錠 · 飯後" selected={focus === 0} />
-            <QuantityPicker value={quantity} selected={focus === 1} onChange={adjustQuantity} />
-            <p className="helper">Enter 記錄已服用</p>
+            <MedicineRow
+              medicine={medicineName('pressure')}
+              detail={`1 ${t('dose.unitPill')} · ${medicineUsage('pressure')}`}
+              selected={focus === 0}
+            />
+            <QuantityPicker
+              value={quantity}
+              selected={focus === 1}
+              onChange={adjustQuantity}
+              {...quantityLabels}
+            />
+            <p className="helper">{t('dose.enterToRecord')}</p>
           </>,
         }
 
       case SCREEN.RECORD_TODAY:
         return {
-          title: '記錄今日服藥', date: '09/19', time: '現在', count: doses.length,
-          left: '完成', right: '返回',
+          title: t('dose.recordTodayTitle'), date: '09/19', time: t('common.now'), count: doses.length,
+          left: t('common.finish'), right: t('common.back'),
           onLeft: () => navigate(SCREEN.RECORD_COMPLETE),
           onEnter: () => toggleDose(focus),
+          onNumber: (number) => {
+            if (doses[number - 1]) toggleDose(number - 1)
+          },
           content: doses.map((dose, index) => (
             <MedicineRow
               key={dose.id}
-              medicine={dose.medicine}
-              detail={dose.detail}
+              medicine={`${index + 1}  ${medicineName(dose.medicineId)}`}
+              detail={doseDetail(dose)}
               checked={dose.taken}
               selected={focus === index}
               onClick={() => toggleDose(index)}
@@ -297,59 +419,91 @@ export default function App() {
 
       case SCREEN.RECORD_COMPLETE:
         return {
-          title: '記錄完成', count: 1, left: '主選單', right: '返回',
+          title: t('dose.completeTitle'), count: 1,
+          left: t('common.mainMenu'), right: t('common.back'),
           onEnter: () => replace(SCREEN.HOME),
           content: <>
-            <FeedbackCard title="今日用藥已記錄" />
-            <p className="helper centered">已完成 {doses.filter((dose) => dose.taken).length} / {doses.length} 項</p>
+            <FeedbackCard title={t('dose.recorded')} />
+            <p className="helper centered">{t('dose.progress', {
+              done: doses.filter((dose) => dose.taken).length,
+              total: doses.length,
+            })}</p>
           </>,
         }
 
       case SCREEN.HISTORY:
         return {
-          title: '歷史紀錄', date: '09/19', time: '', count: historyDays.length,
-          left: '開啟', right: '返回', onEnter: () => navigate(SCREEN.HISTORY_DETAIL),
+          title: t('history.title'), date: '09/19', time: '', count: historyDays.length,
+          left: t('common.open'), right: t('common.back'),
+          onEnter: () => navigate(SCREEN.HISTORY_DETAIL),
+          onNumber: (number) => {
+            if (historyDays[number - 1]) navigate(SCREEN.HISTORY_DETAIL)
+          },
           content: historyDays.map((day, index) => (
-            <ListRow key={day.id} label={day.label} state={day.state} selected={focus === index} onClick={() => navigate(SCREEN.HISTORY_DETAIL)} />
+            <ListRow
+              key={day.id}
+              label={`${index + 1}  ${t('history.dayLabel', {
+                date: day.date,
+                relative: t(`history.${day.relative}`),
+                done: day.done,
+                total: day.total,
+              })}`}
+              state={day.state}
+              selected={focus === index}
+              onClick={() => navigate(SCREEN.HISTORY_DETAIL)}
+            />
           )),
         }
 
       case SCREEN.HISTORY_DETAIL:
         return {
-          title: '紀錄詳情', count: 2, left: '更新', right: '返回',
+          title: t('history.detailTitle'), count: 2,
+          left: t('common.update'), right: t('common.back'),
           onLeft: () => navigate(SCREEN.UPDATE_RECORD), onEnter: () => navigate(SCREEN.UPDATE_RECORD),
+          onNumber: (number) => {
+            if (number >= 1 && number <= 2) setFocus(number - 1)
+          },
           content: <>
             <p className="prompt">2026/09/19</p>
-            <MedicineRow medicine="降血壓藥" detail="08:05 · 1 錠" checked selected={focus === 0} />
-            <MedicineRow medicine="維生素 D" detail="12:10 · 1 粒" checked selected={focus === 1} />
+            <MedicineRow medicine={`1  ${medicineName('pressure')}`} detail={doseDetail({ time: '08:05', amount: 1, unit: 'unitPill' })} checked selected={focus === 0} />
+            <MedicineRow medicine={`2  ${medicineName('vitamin-d')}`} detail={doseDetail({ time: '12:10', amount: 1, unit: 'unitCapsule' })} checked selected={focus === 1} />
           </>,
         }
 
       case SCREEN.UPDATE_RECORD:
         return {
-          title: '更新紀錄', count: 2, left: '儲存', right: '返回',
+          title: t('history.updateTitle'), count: 2,
+          left: t('common.save'), right: t('common.back'),
           horizontal: true, onEnter: () => navigate(decision === 0 ? SCREEN.QUANTITY : SCREEN.HISTORY_DETAIL),
           content: <>
-            <MedicineRow medicine="維生素 D" detail="12:10 · 1 粒" checked selected />
-            <p className="prompt">是否修改服用數量？</p>
-            <Decision selected={decision} onSelect={setDecision} />
+            <MedicineRow medicine={medicineName('vitamin-d')} detail={doseDetail({ time: '12:10', amount: 1, unit: 'unitCapsule' })} checked selected />
+            <p className="prompt">{t('history.changeQuantity')}</p>
+            <Decision
+              selected={decision}
+              left={t('add.yes')}
+              right={t('add.no')}
+              onSelect={setDecision}
+              ariaLabel={t('common.select')}
+            />
           </>,
         }
 
       case SCREEN.QUANTITY:
         return {
-          title: '修改數量', count: 1, left: '儲存', right: '返回',
+          title: t('dose.quantityTitle'), count: 1,
+          left: t('common.save'), right: t('common.back'),
           horizontal: true, onEnter: () => replace(SCREEN.HISTORY_DETAIL),
           content: <>
-            <p className="prompt">調整本次服用數量</p>
-            <QuantityPicker value={quantity} onChange={adjustQuantity} />
-            <p className="helper">每次調整 0.5 錠<br />← → 調整</p>
+            <p className="prompt">{t('dose.quantityPrompt')}</p>
+            <QuantityPicker value={quantity} onChange={adjustQuantity} {...quantityLabels} />
+            <p className="helper">{t('dose.quantityHelp')}</p>
           </>,
         }
 
       case SCREEN.MEDICINES:
         return {
-          title: '我的藥品', count: medicines.length + 1, left: '開啟', right: '返回',
+          title: t('medicines.title'), count: medicines.length + 1,
+          left: t('common.open'), right: t('common.back'),
           onEnter: () => {
             if (focus === medicines.length) navigate(SCREEN.ADD_METHOD)
             else {
@@ -357,12 +511,22 @@ export default function App() {
               navigate(SCREEN.MEDICINE_DETAIL)
             }
           },
-          content: <>
+          onNumber: (number) => {
+            if (number === medicines.length + 1) {
+              navigate(SCREEN.ADD_METHOD)
+              return
+            }
+            const medicine = medicines[number - 1]
+            if (!medicine) return
+            setSelectedMedicine(medicine)
+            navigate(SCREEN.MEDICINE_DETAIL)
+          },
+          content: <div className="medicine-list">
             {medicines.map((medicine, index) => (
               <MedicineRow
                 key={medicine.id}
-                medicine={medicine.name}
-                detail={medicine.schedule}
+                medicine={`${index + 1}  ${medicineName(medicine.id)}`}
+                detail={medicineSchedule(medicine.id)}
                 selected={focus === index}
                 onClick={() => {
                   setSelectedMedicine(medicine)
@@ -370,32 +534,69 @@ export default function App() {
                 }}
               />
             ))}
-            <ListRow label="＋ 新增藥品" selected={focus === medicines.length} onClick={() => navigate(SCREEN.ADD_METHOD)} />
-          </>,
+            <ListRow label={`${medicines.length + 1}  ${t('medicines.add')}`} selected={focus === medicines.length} onClick={() => navigate(SCREEN.ADD_METHOD)} />
+          </div>,
         }
 
       case SCREEN.MEDICINE_DETAIL:
         return {
-          title: '藥品詳情', count: 3, left: '修改', right: '返回',
+          title: t('medicines.detailTitle'), count: 3,
+          left: t('common.update'), right: t('common.back'),
           onLeft: () => navigate(SCREEN.QUANTITY), onEnter: () => navigate(SCREEN.QUANTITY),
           content: <>
-            <MedicineRow medicine={selectedMedicine.name} detail={selectedMedicine.strength} selected={focus === 0} />
-            <ListRow label={`用法：${selectedMedicine.usage}`} selected={focus === 1} />
-            <ListRow label={`提醒：${selectedMedicine.reminders.join('、')}`} selected={focus === 2} />
+            <MedicineRow medicine={medicineName(selectedMedicine.id)} detail={selectedMedicine.strength} selected={focus === 0} />
+            <ListRow label={t('medicines.usage', { usage: medicineUsage(selectedMedicine.id) })} selected={focus === 1} />
+            <ListRow label={t('medicines.reminders', { times: selectedMedicine.reminders.join(' / ') })} selected={focus === 2} />
           </>,
         }
 
       case SCREEN.EMERGENCY:
         return {
-          title: '緊急資訊', count: 1, left: '求助說明', right: '關閉',
+          title: t('emergency.title'), count: 1,
+          left: t('emergency.help'), right: t('common.close'),
           emergency: true,
           onEnter: () => undefined,
           content: <>
-            <FeedbackCard danger title="用藥緊急資訊" />
-            <p className="emergency-line"><strong>過敏：</strong>盤尼西林</p>
-            <p className="helper">目前用藥：降血壓藥 10 mg</p>
+            <FeedbackCard danger title={t('emergency.cardTitle')} />
+            <p className="emergency-line"><strong>{t('emergency.allergy')}</strong>{t('emergency.allergyValue')}</p>
+            <p className="helper">{t('emergency.currentMedicine')}</p>
           </>,
         }
+
+      case SCREEN.LANGUAGE: {
+        const languages = [
+          { code: 'zh-TW', label: t('language.zhTW') },
+          { code: 'en-US', label: t('language.enUS') },
+        ]
+        const selectLanguage = (index) => {
+          const language = languages[index]
+          if (!language) return
+          i18n.changeLanguage(language.code)
+          setFocus(index)
+        }
+
+        return {
+          title: t('language.title'), count: languages.length,
+          left: t('common.select'), right: t('common.back'),
+          onEnter: () => selectLanguage(focus),
+          onNumber: (number) => selectLanguage(number - 1),
+          content: <>
+            <p className="prompt">{t('language.prompt')}</p>
+            {languages.map((language, index) => (
+              <ListRow
+                key={language.code}
+                label={`${index + 1}  ${language.label}`}
+                trailing={currentLanguage === language.code ? '✓' : '›'}
+                selected={focus === index}
+                onClick={() => selectLanguage(index)}
+              />
+            ))}
+            <p className="helper">{t('language.current', {
+              language: currentLanguage === 'zh-TW' ? t('language.zhTW') : t('language.enUS'),
+            })}</p>
+          </>,
+        }
+      }
 
       default:
         return { title: 'MedAboutYou', count: 0, content: null }
@@ -410,14 +611,18 @@ export default function App() {
     const isTextInput = event.target instanceof HTMLInputElement && event.target.type !== 'file'
     if (isTextInput && event.key !== 'Enter' && event.key !== 'Escape') return
 
-    if (event.key >= '1' && event.key <= '4' && screen === SCREEN.HOME) {
+    const isQuantityEntry = screen === SCREEN.QUANTITY
+      || (screen === SCREEN.REMINDER_ALERT && focus === 1)
+
+    if (isQuantityEntry && (/^[0-9]$/.test(event.key) || event.key === '*')) {
       event.preventDefault()
-      navigate(homeItems[Number(event.key) - 1].target)
+      enterQuantityDigit(event.key)
       return
     }
-    if (event.key === '9' && screen === SCREEN.HOME) {
+
+    if (/^[1-9]$/.test(event.key) && screenConfig.onNumber) {
       event.preventDefault()
-      navigate(SCREEN.REMINDER_ALERT)
+      screenConfig.onNumber(Number(event.key))
       return
     }
 
@@ -460,6 +665,9 @@ export default function App() {
       onLeft={onLeft}
       onCenter={onCenter}
       onRight={onRight}
+      centerLabel={t('common.confirm')}
+      noLeftLabel={t('common.noLeftAction')}
+      noRightLabel={t('common.noRightAction')}
       onKeyDown={handleKeyDown}
       screenRef={shellRef}
     >

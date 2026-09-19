@@ -111,6 +111,39 @@
   line-height: 22px;
 }
 
+.list-row > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dense-list,
+.medicine-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dense-list .list-row {
+  min-height: 36px;
+  padding-block: 4px;
+  font-size: 15px;
+}
+
+.medicine-list {
+  gap: 4px;
+}
+
+.medicine-list .medicine-row {
+  min-height: 52px;
+}
+
+.medicine-list .list-row {
+  min-height: 40px;
+}
+
 .list-row--danger {
   border-color: #dba7a3;
   background: var(--danger-soft);

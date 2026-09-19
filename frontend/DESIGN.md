@@ -39,7 +39,9 @@ Typography uses `Noto Sans TC`, then platform Chinese sans-serif fallbacks. Titl
 - `ArrowLeft` / `ArrowRight`: choose a binary option or adjust a quantity.
 - `Enter`: activate the focused item or confirm the current screen.
 - `Escape` / `SoftLeft`: trigger the left soft-key action.
-- Home numeric shortcuts: `1`–`4` open the matching menu item; `9` opens the reminder demo.
+- Home numeric shortcuts: `1`–`5` open the matching function; `9` opens the reminder demo.
+- Numbered menus accept `1`–`9` for direct selection without moving focus first.
+- Quantity controls accept direct numeric entry. Press `*` for the decimal point, so `1`, `*`, `5` enters `1.5` pills.
 - Pointer clicks are supported for desktop development, but all primary flows work from the keypad.
 
 The physical right soft key is not handled as a keyboard event. Every internal screen transition creates a native browser history entry with `history.pushState()`. RSK therefore invokes the platform's normal back action and the app restores the previous screen from `popstate`; only the root entry may be closed by the platform. The rendered right soft-key button calls the same `history.back()` path for desktop testing.
@@ -51,11 +53,18 @@ Destructive and emergency information uses both text and color; color is never t
 1. Home → record today → toggle doses → completion feedback.
 2. Home → history → daily detail → update record → quantity.
 3. Home → medicines → medicine detail.
-4. Medicines → add medicine → photo/file or keyboard input → recognition → confirm → daily-use decision → reminder → completion.
+4. Medicines → add medicine → photo/file or keyboard input → recognition → possible medicine matches → daily-use decision → reminder → completion.
 5. Home → emergency information.
 6. Home `9` → reminder alert demo → record or postpone.
+7. Home `5` → switch between Traditional Chinese (`zh-TW`) and US English (`en-US`).
 
 All current data is fixture data in `src/data/fixtures.js`. Today’s completion toggles persist in `localStorage` under `medaboutyou-today-doses`.
+
+## Localization
+
+The app uses the template's existing i18next, react-i18next, and browser-language-detector dependencies. Resources live under `src/assets/locales/zh-TW` and `src/assets/locales/en-US`. Detection checks the saved `medaboutyou-language` preference first and then the browser locale. Traditional Chinese is the fallback.
+
+All current screens, fixture medicine names, soft keys, accessibility labels, and feedback text use translation keys. New API values such as official medicine names remain data and should not be used as translation keys.
 
 ## Photo/file requirement
 
@@ -67,7 +76,7 @@ The upload screen intentionally uses only a native HTML file input:
 
 On a supported phone this opens the system camera or image picker. After selection, the file enters the recognition flow directly. The app does not render a camera view or an image preview, which keeps the QVGA interface simple and avoids extra memory use.
 
-The current recognition step is a 1.2 second frontend mock. When the backend contract is ready, replace that timer with a `multipart/form-data` upload and keep the same loading, confirm, error, and cancel states. Do not put the image into base64 or `localStorage`.
+The current recognition step is a 1.2 second frontend mock. It then displays `medicineCandidates`, shaped like the planned search API result with an id, strength, and confidence score. When the backend contract is ready, replace the fixture with the response from a `multipart/form-data` upload while keeping the same loading, candidate, error, and cancel states. Do not put the image into base64 or `localStorage`.
 
 ## Component map
 

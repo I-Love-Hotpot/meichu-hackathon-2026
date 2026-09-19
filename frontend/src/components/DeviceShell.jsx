@@ -11,16 +11,25 @@ export function HeaderBar({ title, date, time, emergency = false }) {
   )
 }
 
-export function SoftKeyBar({ left = '選擇', right = '返回', onLeft, onCenter, onRight }) {
+export function SoftKeyBar({
+  left = 'Select',
+  right = 'Back',
+  centerLabel = 'Confirm',
+  noLeftLabel = 'No left soft-key action',
+  noRightLabel = 'No right soft-key action',
+  onLeft,
+  onCenter,
+  onRight,
+}) {
   return (
     <footer className="softkey-bar">
-      <button type="button" onClick={onLeft} disabled={!left} aria-label={left || '無左軟鍵'}>
+      <button type="button" onClick={onLeft} disabled={!left} aria-label={left || noLeftLabel}>
         {left}
       </button>
-      <button type="button" onClick={onCenter} aria-label="確認">
+      <button type="button" onClick={onCenter} aria-label={centerLabel}>
         <SelectIcon aria-hidden="true" />
       </button>
-      <button type="button" onClick={onRight} disabled={!right} aria-label={right || '無右軟鍵'}>
+      <button type="button" onClick={onRight} disabled={!right} aria-label={right || noRightLabel}>
         <BackIcon aria-hidden="true" />
         <span>{right}</span>
       </button>
@@ -39,6 +48,9 @@ export default function DeviceShell({
   onLeft,
   onCenter,
   onRight,
+  centerLabel,
+  noLeftLabel,
+  noRightLabel,
   onKeyDown,
   screenRef,
 }) {
@@ -55,6 +67,9 @@ export default function DeviceShell({
       <SoftKeyBar
         left={left}
         right={right}
+        centerLabel={centerLabel}
+        noLeftLabel={noLeftLabel}
+        noRightLabel={noRightLabel}
         onLeft={onLeft}
         onCenter={onCenter}
         onRight={onRight}
