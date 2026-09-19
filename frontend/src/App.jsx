@@ -45,6 +45,11 @@ const SCREEN = {
   ARCHIVED_MEDICINES: "archived-medicines",
   DELETE_MEDICINE: "delete-medicine",
   EMERGENCY: "emergency",
+  MEDICATION_EMERGENCY: "medication-emergency",
+  FIRST_AID: "first-aid",
+  FIRST_AID_WOUND: "first-aid-wound",
+  FIRST_AID_PREGNANCY: "first-aid-pregnancy",
+  CPR_GUIDE: "cpr-guide",
   MEDICINE_CHAT_MENU: "medicine-chat-menu",
   MEDICINE_CHAT_SEARCH_MENU: "medicine-chat-search-menu",
   MEDICINE_CHAT_MEDICINE: "medicine-chat-medicine",
@@ -82,6 +87,7 @@ const MOCK_CHAT_MEDICINES = [
 ];
 const SCREEN_VALUES = new Set(Object.values(SCREEN));
 const LANGUAGE_CODES = ["zh-TW", "en-US"];
+const CPR_STEP_COUNT = 6;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const getDefaultFocusForScreen = (screen, currentLanguage) => {
   if (screen !== SCREEN.LANGUAGE) return 0;
@@ -194,6 +200,7 @@ export default function App() {
     medicineCandidates[0],
   );
   const [uploadedName, setUploadedName] = useState("");
+  const [cprStep, setCprStep] = useState(0);
   const [doses, setDoses] = useStoredDoses();
   const [userMedicines, setUserMedicines] = useStoredUserMedicines();
   const [medicineSettings, setMedicineSettings] = useStoredMedicineSettings();
@@ -295,9 +302,7 @@ export default function App() {
         },
         {
           label: t("chat.reminders"),
-          value: reminders.length
-            ? reminders.join(" / ")
-            : t("medicines.none"),
+          value: reminders.length ? reminders.join(" / ") : t("medicines.none"),
         },
       ],
     };
@@ -773,8 +778,7 @@ export default function App() {
           count: homeItems.length,
           onEnter: () => {
             const item = homeItems[focus];
-            if (item.target === SCREEN.MEDICINE_CHAT_MENU)
-              startMedicineChat();
+            if (item.target === SCREEN.MEDICINE_CHAT_MENU) startMedicineChat();
             else navigate(item.target);
           },
           onNumber: (number) => {
@@ -1636,19 +1640,104 @@ export default function App() {
       case SCREEN.EMERGENCY:
         return {
           title: t("emergency.title"),
-          count: 1,
-          left: t("emergency.help"),
-          right: t("common.close"),
+          count: 3,
+          left: t("common.open"),
+          right: t("common.back"),
           emergency: true,
-          onEnter: () => undefined,
+          onEnter: () => {
+            if (focus === 0) navigate(SCREEN.MEDICATION_EMERGENCY);
+            else if (focus === 1) navigate(SCREEN.FIRST_AID);
+            else {
+              setCprStep(0);
+              navigate(SCREEN.CPR_GUIDE);
+            }
+          },
+          onNumber: (number) => {
+            if (number === 1) navigate(SCREEN.MEDICATION_EMERGENCY, 0);
+            else if (number === 2) navigate(SCREEN.FIRST_AID, 1);
+            else if (number === 3) {
+              setCprStep(0);
+              navigate(SCREEN.CPR_GUIDE, 2);
+            }
+          },
+          content: (
+            <div className="dense-list">
+              <ListRow
+                label={`1  ${t("emergency.medicationCategory")}`}
+                state="danger"
+                selected={focus === 0}
+                onClick={() => navigate(SCREEN.MEDICATION_EMERGENCY, 0)}
+              />
+              <ListRow
+                label={`2  ${t("emergency.firstAidCategory")}`}
+                selected={focus === 1}
+                onClick={() => navigate(SCREEN.FIRST_AID, 1)}
+              />
+              <ListRow
+                label={`3  ${t("emergency.cprCategory")}`}
+                state="danger"
+                selected={focus === 2}
+                onClick={() => {
+                  setCprStep(0);
+                  navigate(SCREEN.CPR_GUIDE, 2);
+                }}
+              />
+            </div>
+          ),
+        };
+
+      case SCREEN.MEDICATION_EMERGENCY:
+        return {
+          title: t("emergency.medicationTitle"),
+          count: 1,
+          left: "",
+          right: t("common.back"),
+          emergency: true,
+          content: (
+            <div className="emergency-detail">
+              <p className="emergency-detail__label">
+                {t("emergency.allergyLabel")}
+              </p>
+              <p className="emergency-result">{t("emergency.allergyValue")}</p>
+              <p className="emergency-detail__label">
+                {t("emergency.currentMedicationLabel")}
+              </p>
+              <p>{t("emergency.currentMedicine")}</p>
+              <p className="emergency-warning">
+                {t("emergency.medicationWarning")}
+              </p>
+            </div>
+          ),
+        };
+
+      case SCREEN.FIRST_AID:
+        return {
+          title: t("emergency.firstAidTitle"),
+          count: 2,
+          left: t("common.open"),
+          right: t("common.back"),
+          emergency: true,
+          onEnter: () =>
+            navigate(
+              focus === 0 ? SCREEN.FIRST_AID_WOUND : SCREEN.FIRST_AID_PREGNANCY,
+            ),
+          onNumber: (number) => {
+            if (number === 1) navigate(SCREEN.FIRST_AID_WOUND, 0);
+            if (number === 2) navigate(SCREEN.FIRST_AID_PREGNANCY, 1);
+          },
           content: (
             <>
-              <FeedbackCard danger title={t("emergency.cardTitle")} />
-              <p className="emergency-line">
-                <strong>{t("emergency.allergy")}</strong>
-                {t("emergency.allergyValue")}
-              </p>
-              <p className="helper">{t("emergency.currentMedicine")}</p>
+              <p className="prompt">{t("emergency.chooseFirstAid")}</p>
+              <ListRow
+                label={`1  ${t("emergency.woundTitle")}`}
+                selected={focus === 0}
+                onClick={() => navigate(SCREEN.FIRST_AID_WOUND, 0)}
+              />
+              <ListRow
+                label={`2  ${t("emergency.pregnancyTitle")}`}
+                selected={focus === 1}
+                onClick={() => navigate(SCREEN.FIRST_AID_PREGNANCY, 1)}
+              />
             </>
           ),
         };
@@ -1776,7 +1865,9 @@ export default function App() {
           count: 0,
           left: null,
           right: t("common.back"),
-          content: <p className="chat-history-empty">{t("chat.historyEmpty")}</p>,
+          content: (
+            <p className="chat-history-empty">{t("chat.historyEmpty")}</p>
+          ),
         };
 
       case SCREEN.MEDICINE_CHAT_MEDICINE: {
@@ -1882,9 +1973,7 @@ export default function App() {
             count: 0,
             left: null,
             right: t("common.back"),
-            content: (
-              <p className="chat-history-empty">{t("chat.emptyBag")}</p>
-            ),
+            content: <p className="chat-history-empty">{t("chat.emptyBag")}</p>,
           };
         }
 
@@ -1967,9 +2056,7 @@ export default function App() {
                 editing={chatEditingField === "recognition"}
                 multiline
                 maxLength={6000}
-                onChange={(event) =>
-                  setChatRecognitionText(event.target.value)
-                }
+                onChange={(event) => setChatRecognitionText(event.target.value)}
                 onSelect={() => setFocus(0)}
                 onEditingChange={(editing) => {
                   if (editing) enterChatInputMode("recognition");
@@ -2004,6 +2091,82 @@ export default function App() {
             </div>
           ),
         };
+
+      case SCREEN.FIRST_AID_WOUND:
+        return {
+          title: t("emergency.woundTitle"),
+          count: 1,
+          left: "",
+          right: t("common.back"),
+          emergency: true,
+          content: (
+            <div className="emergency-detail">
+              <ol>
+                {[1, 2, 3, 4].map((step) => (
+                  <li key={step}>{t(`emergency.woundSteps.step${step}`)}</li>
+                ))}
+              </ol>
+              <p className="emergency-warning">{t("emergency.woundWarning")}</p>
+            </div>
+          ),
+        };
+
+      case SCREEN.FIRST_AID_PREGNANCY:
+        return {
+          title: t("emergency.pregnancyTitle"),
+          count: 1,
+          left: "",
+          right: t("common.back"),
+          emergency: true,
+          content: (
+            <div className="emergency-detail">
+              <ol>
+                {[1, 2, 3].map((step) => (
+                  <li key={step}>
+                    {t(`emergency.pregnancySteps.step${step}`)}
+                  </li>
+                ))}
+              </ol>
+              <p className="emergency-warning">
+                {t("emergency.pregnancyWarning")}
+              </p>
+            </div>
+          ),
+        };
+
+      case SCREEN.CPR_GUIDE: {
+        const isLastCprStep = cprStep === CPR_STEP_COUNT - 1;
+        const advanceCpr = () => {
+          if (isLastCprStep) resetFlow(SCREEN.HOME);
+          else
+            setCprStep((current) => Math.min(current + 1, CPR_STEP_COUNT - 1));
+        };
+        return {
+          title: t("emergency.cprTitle"),
+          count: 1,
+          left: isLastCprStep ? t("common.mainMenu") : t("emergency.nextStep"),
+          right: t("common.back"),
+          emergency: true,
+          onEnter: advanceCpr,
+          onLeft: advanceCpr,
+          content: (
+            <div className="cpr-step" aria-live="polite">
+              <p className="cpr-step__progress">
+                {t("emergency.stepProgress", {
+                  current: cprStep + 1,
+                  total: CPR_STEP_COUNT,
+                })}
+              </p>
+              <strong>{t(`emergency.cprSteps.step${cprStep + 1}Title`)}</strong>
+              <p>{t(`emergency.cprSteps.step${cprStep + 1}Body`)}</p>
+              {cprStep === 3 && (
+                <p className="cpr-step__tempo">100–120 / min</p>
+              )}
+              <p className="emergency-warning">{t("emergency.cprWarning")}</p>
+            </div>
+          ),
+        };
+      }
 
       case SCREEN.LANGUAGE: {
         const languages = [
