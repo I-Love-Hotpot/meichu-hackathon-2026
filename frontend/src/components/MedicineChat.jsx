@@ -8,6 +8,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { chatWithMedicineAssistant } from "../api/medicine.js";
+import { createChatEntityId } from "../hooks/useStoredChatSessions.js";
 import { FocusableField } from "./Controls.jsx";
 import "./MedicineChat.css";
 
@@ -23,22 +24,28 @@ const MedicineChat = forwardRef(function MedicineChat(
   {
     selectedMedicine,
     recognitionText = "",
+    messages = [],
+    initialDisclaimer = "",
+    onMessagesChange,
+    onChooseMedicine,
     onSelectMedicine,
   },
   ref,
 ) {
   const { t } = useTranslation();
-  const [messages, setMessages] = useState([]);
   const [question, setQuestion] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
-  const [disclaimer, setDisclaimer] = useState(fallbackDisclaimer);
+  const [disclaimer, setDisclaimer] = useState(
+    initialDisclaimer || fallbackDisclaimer,
+  );
   const [pendingQuestion, setPendingQuestion] = useState("");
   const [focusedId, setFocusedId] = useState("medicine-question");
   const [editingId, setEditingId] = useState(null);
   const rootRef = useRef(null);
   const formRef = useRef(null);
   const requestRef = useRef(null);
+  const questionValueRef = useRef("");
 
   useEffect(
     () => () => {
@@ -49,8 +56,7 @@ const MedicineChat = forwardRef(function MedicineChat(
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      const scroller = rootRef.current?.parentElement;
-      scroller?.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+      formRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [messages, sending, error]);
@@ -86,7 +92,13 @@ const MedicineChat = forwardRef(function MedicineChat(
   }, [activateQuestion, focusedId]);
 
   const submitQuestion = useCallback(() => {
-    formRef.current?.requestSubmit();
+    const form = formRef.current;
+    if (!form) return;
+    if (typeof form.requestSubmit === "function") {
+      form.requestSubmit();
+      return;
+    }
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   }, []);
 
   const scrollConversation = useCallback((direction) => {
@@ -150,17 +162,26 @@ const MedicineChat = forwardRef(function MedicineChat(
 
   const chooseMedicine = (record) => {
     if (requestRef.current) return;
-    onSelectMedicine?.(record);
-    setMessages([]);
+    onChooseMedicine?.(record);
     setError("");
-    setQuestion(t("chat.explainAppearance"));
+    setDisclaimer(fallbackDisclaimer);
+    const nextQuestion = t("chat.explainAppearance");
+    questionValueRef.current = nextQuestion;
+    setQuestion(nextQuestion);
     setEditingId(null);
     selectFocus("medicine-question");
   };
 
   async function send(event) {
     event.preventDefault();
-    const message = question.trim();
+    const fieldValue = rootRef.current?.querySelector(
+      "#medicine-question",
+    )?.value;
+    const message = (
+      typeof fieldValue === "string"
+        ? fieldValue
+        : questionValueRef.current || question
+    ).trim();
     if (!message || requestRef.current) return;
 
     const controller = new AbortController();
@@ -201,10 +222,22 @@ const MedicineChat = forwardRef(function MedicineChat(
         { signal: controller.signal },
       );
 
-      setMessages((previous) => [
-        ...previous,
-        { role: "user", content: message },
+      const now = new Date().toISOString();
+      const resolvedMedicine =
+        data.catalog?.status === "matched" && data.sources?.length === 1
+          ? data.sources[0]
+          : selectedMedicine;
+      const nextDisclaimer = data.disclaimer || fallbackDisclaimer;
+      const nextMessages = [
+        ...messages,
         {
+          id: createChatEntityId("message"),
+          role: "user",
+          content: message,
+          createdAt: now,
+        },
+        {
+          id: createChatEntityId("message"),
           role: "assistant",
           content: [
             data.reply.answer,
@@ -214,12 +247,18 @@ const MedicineChat = forwardRef(function MedicineChat(
           reply: data.reply,
           sources: data.sources || [],
           catalog: data.catalog,
+          createdAt: now,
         },
-      ]);
-      if (data.catalog?.status === "matched" && data.sources?.length === 1) {
-        onSelectMedicine?.(data.sources[0]);
+      ];
+      onMessagesChange?.(nextMessages, {
+        medicine: resolvedMedicine,
+        disclaimer: nextDisclaimer,
+      });
+      if (resolvedMedicine !== selectedMedicine) {
+        onSelectMedicine?.(resolvedMedicine);
       }
-      setDisclaimer(data.disclaimer || fallbackDisclaimer);
+      setDisclaimer(nextDisclaimer);
+      questionValueRef.current = "";
       setQuestion("");
     } catch (failure) {
       setError(
@@ -267,7 +306,10 @@ const MedicineChat = forwardRef(function MedicineChat(
         </article>
 
         {messages.map((item, index) => (
-          <article key={index} className={`chat-bubble ${item.role}`}>
+          <article
+            key={item.id || index}
+            className={`chat-bubble ${item.role}`}
+          >
             <strong>
               {item.role === "user" ? t("chat.you") : t("chat.assistant")}
             </strong>
@@ -373,7 +415,9 @@ const MedicineChat = forwardRef(function MedicineChat(
               <strong>{t("chat.you")}</strong>
               <p>{pendingQuestion}</p>
             </article>
-            <p role="status">{t("chat.replying")}</p>
+            <p className="chat-replying" role="status">
+              {t("chat.replying")}
+            </p>
           </>
         )}
         {error && (
@@ -400,7 +444,10 @@ const MedicineChat = forwardRef(function MedicineChat(
           onEditingChange={(editing) =>
             handleEditingChange("medicine-question", editing)
           }
-          onChange={(event) => setQuestion(event.target.value)}
+          onChange={(event) => {
+            questionValueRef.current = event.target.value;
+            setQuestion(event.target.value);
+          }}
           placeholder={t("chat.questionPlaceholder")}
         />
       </form>

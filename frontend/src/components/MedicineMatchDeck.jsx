@@ -93,6 +93,9 @@ export default function MedicineMatchDeck({
               onClick={() => onChange(dotIndex)}
             />
           ))}
+          <span className="match-count" aria-hidden="true">
+            {index + 1} / {cardCount}
+          </span>
         </div>
         <span aria-hidden="true">›</span>
       </div>

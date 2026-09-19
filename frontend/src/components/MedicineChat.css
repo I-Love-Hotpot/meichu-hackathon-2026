@@ -60,6 +60,7 @@
 .chat-warnings, .chat-followups { margin-top: 10px; }
 .chat-warnings strong { color: #f9d898; }
 .medicine-chat .chat-error { margin-right: 12px; margin-left: 12px; background: #522e34; color: #ffe0e4; border-radius: 8px; padding: 10px; }
+.medicine-chat .chat-replying { margin: 6px 0 0; padding: 0 12px 4px; }
 .chat-form { flex-shrink: 0; margin: 0 12px 10px; }
 .chat-form label { display: block; margin-bottom: 5px; }
 .chat-focusable-field { flex: 1; min-width: 0; }
@@ -81,8 +82,13 @@
    and conversation to scroll inside the 240px content area. */
 .medicine-chat-screen {
   height: 240px;
-  margin: -10px -12px;
+  margin: -8pt;
   overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.medicine-chat-screen::-webkit-scrollbar {
+  display: none;
 }
 
 .medicine-chat-screen .medicine-chat {
@@ -106,6 +112,7 @@
   color: var(--ink);
   background: white;
 }
+.medicine-chat-screen .medicine-chat textarea { resize: none; }
 .medicine-chat-screen .medicine-chat textarea::placeholder { color: var(--secondary); }
 .medicine-chat-screen .medicine-chat button {
   border-color: var(--focus-stroke);
@@ -119,7 +126,12 @@
   background: var(--focus);
   outline-color: var(--focus-stroke);
 }
-.medicine-chat-screen .chat-messages { flex: none; min-height: 120px; overflow: visible; }
+.medicine-chat-screen .chat-messages {
+  flex: none;
+  height: auto;
+  min-height: 120px;
+  overflow: visible;
+}
 .medicine-chat-screen .chat-assistant-header {
   margin-bottom: 6px;
   padding: 6px;
@@ -129,6 +141,7 @@
 .medicine-chat-screen .chat-assistant-header strong { color: var(--ink); }
 .medicine-chat-screen .chat-bubble.assistant { margin-left: 6px; }
 .medicine-chat-screen .chat-bubble.user { margin-right: 6px; }
+.medicine-chat-screen .chat-replying { padding-inline: 6px; }
 .medicine-chat-screen .chat-form { margin: 0 6px 6px; }
 .medicine-chat-screen .chat-error,
 .medicine-chat-screen .chat-disclaimer,
@@ -139,19 +152,41 @@
 
 @media (max-width: 128px), (max-height: 160px) {
   .medicine-chat-screen {
-    height: 106px;
-    margin: -4px;
+    height: 120px;
+    margin: -4pt;
   }
 
   .medicine-chat-screen .medicine-chat {
     padding: 0;
     gap: 0;
-    font-size: 9px;
+    font-size: 12px;
+  }
+
+  .medicine-chat-screen .medicine-chat p {
+    margin-top: 2px;
+    line-height: 1.35;
   }
 
   .medicine-chat-screen .recognition-input {
-    padding: 3px;
+    padding: 4px;
     border-radius: 4px;
+  }
+
+  .medicine-chat-screen .chat-sources,
+  .medicine-chat-screen .chat-warnings,
+  .medicine-chat-screen .chat-followups {
+    margin-top: 3px;
+  }
+
+  .medicine-chat-screen .source-record {
+    margin-top: 3px;
+    padding-top: 3px;
+  }
+
+  .medicine-chat-screen .chat-bubble ul {
+    margin-top: 3px;
+    padding-left: 12px;
+    line-height: 1.35;
   }
 
   .medicine-chat-screen .medicine-chat button {
@@ -168,19 +203,19 @@
 
   .medicine-chat-screen .chat-focusable-field label {
     margin: 0;
-    font-size: 9px;
-    line-height: 10px;
+    font-size: 12px;
+    line-height: 14px;
   }
 
   .medicine-chat-screen .medicine-chat input,
   .medicine-chat-screen .medicine-chat textarea {
     padding: 3px;
     border-radius: 3px;
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .medicine-chat-screen .chat-messages {
-    min-height: 52px;
+    min-height: 60px;
   }
 
   .medicine-chat-screen .chat-assistant-header {
@@ -190,10 +225,17 @@
 
   .medicine-chat-screen .chat-bubble.assistant { margin-left: 2px; }
   .medicine-chat-screen .chat-bubble.user { margin-right: 2px; }
+  .medicine-chat-screen .chat-replying { padding-inline: 2px; }
   .medicine-chat-screen .chat-form { margin: 0 2px 3px; }
   .medicine-chat-screen .chat-error,
   .medicine-chat-screen .chat-disclaimer,
   .medicine-chat-screen .chat-privacy { margin-right: 2px; margin-left: 2px; }
+
+  .medicine-chat-screen .chat-disclaimer,
+  .medicine-chat-screen .chat-privacy {
+    font-size: 10px;
+    line-height: 12px;
+  }
 
   .medicine-chat-screen .chat-bubble {
     padding: 4px;

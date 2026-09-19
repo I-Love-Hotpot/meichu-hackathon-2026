@@ -8,6 +8,15 @@ import DeviceShell from "./components/DeviceShell.jsx";
 import MedicineChat from "./components/MedicineChat.jsx";
 import MedicineMatchDeck from "./components/MedicineMatchDeck.jsx";
 import {
+  createChatEntityId,
+  snapshotChatMedicine,
+  useStoredChatSessions,
+} from "./hooks/useStoredChatSessions.js";
+import {
+  getLocalDateKey,
+  useStoredDoseLog,
+} from "./hooks/useStoredDoseLog.js";
+import {
   Decision,
   FeedbackCard,
   FocusableField,
@@ -16,7 +25,7 @@ import {
   QuantityPicker,
 } from "./components/Controls.jsx";
 import {
-  historyDays,
+  demoDoseDays,
   medicines,
   todayDoses as initialDoses,
 } from "./data/fixtures.js";
@@ -39,6 +48,7 @@ const SCREEN = {
   HISTORY: "history",
   HISTORY_DETAIL: "history-detail",
   UPDATE_RECORD: "update-record",
+  DELETE_DOSE_RECORD: "delete-dose-record",
   QUANTITY: "quantity",
   MEDICINES: "medicines",
   MEDICINE_DETAIL: "medicine-detail",
@@ -60,15 +70,47 @@ const SCREEN = {
   MEDICINE_CHAT_CONTEXT: "medicine-chat-context",
   MEDICINE_CHAT_ASSISTANT_MENU: "medicine-chat-assistant-menu",
   MEDICINE_CHAT_HISTORY: "medicine-chat-history",
+  MEDICINE_CHAT_CLEAR_HISTORY: "medicine-chat-clear-history",
   MEDICINE_CHAT: "medicine-chat",
   LANGUAGE: "language",
+  RESET_DEMO: "reset-demo",
 };
 
 const HISTORY_KEY = "medaboutyou";
+const DEMO_DATA_STORAGE_KEYS = [
+  "medaboutyou-chat-sessions",
+  "medaboutyou-dose-log",
+  "medaboutyou-dose-log-initial-days-v1",
+  "medaboutyou-today-doses",
+  "medaboutyou-user-medicines",
+  "medaboutyou-medicine-settings",
+];
+const DEMO_RESET_PRESS_COUNT = 6;
+const DEMO_RESET_MAX_GAP_MS = 2000;
 const SCREEN_VALUES = new Set(Object.values(SCREEN));
+const CHAT_SESSION_SCREENS = new Set([
+  SCREEN.MEDICINE_CHAT_CONTEXT,
+  SCREEN.MEDICINE_CHAT,
+]);
 const LANGUAGE_CODES = ["zh-TW", "en-US"];
 const CPR_STEP_COUNT = 6;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const defaultDoseSchedule = initialDoses.map((dose) => ({
+  ...dose,
+  taken: false,
+}));
+const localDateFromKey = (value) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || "");
+  if (!match) return null;
+  const [, year, month, day] = match.map(Number);
+  const date = new Date(year, month - 1, day, 12);
+  return date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+    ? date
+    : null;
+};
+const shortDateFor = (dateKey) => dateKey.slice(5).replace("-", "/");
 const splitSourceVariants = (value = "") =>
   value.split(";;;").map((item) => item.trim());
 const imageVariantFor = (value = "") => {
@@ -99,6 +141,14 @@ const recognitionStrengthFor = (record, recognition) => {
   });
   return matched?.strength || "";
 };
+const chatTitleFor = (messages, fallback) => {
+  const title =
+    messages
+      .find((message) => message.role === "user")
+      ?.content.replace(/\s+/g, " ")
+      .trim() || fallback;
+  return title.length > 42 ? `${title.slice(0, 41)}…` : title;
+};
 const getDefaultFocusForScreen = (screen, currentLanguage) => {
   if (screen !== SCREEN.LANGUAGE) return 0;
   const languageIndex = LANGUAGE_CODES.findIndex(
@@ -106,27 +156,6 @@ const getDefaultFocusForScreen = (screen, currentLanguage) => {
   );
   return languageIndex >= 0 ? languageIndex : 0;
 };
-
-function useStoredDoses() {
-  const [doses, setDoses] = useState(() => {
-    try {
-      const saved = localStorage.getItem("medaboutyou-today-doses");
-      const parsed = saved ? JSON.parse(saved) : null;
-      const isCurrentSchema =
-        Array.isArray(parsed) &&
-        parsed.every((dose) => dose.medicineId && dose.time && dose.unit);
-      return isCurrentSchema ? parsed : initialDoses;
-    } catch {
-      return initialDoses;
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem("medaboutyou-today-doses", JSON.stringify(doses));
-  }, [doses]);
-
-  return [doses, setDoses];
-}
 
 function useStoredUserMedicines() {
   const [userMedicines, setUserMedicines] = useState(() => {
@@ -183,6 +212,7 @@ function useStoredMedicineSettings() {
 
 export default function App() {
   const { t, i18n } = useTranslation();
+  const todayDateKey = getLocalDateKey();
   const [screen, setScreen] = useState(SCREEN.HOME);
   const [focus, setFocus] = useState(0);
   const [decision, setDecision] = useState(0);
@@ -206,15 +236,30 @@ export default function App() {
   const [chatMedicine, setChatMedicine] = useState(null);
   const [chatRecognitionText, setChatRecognitionText] = useState("");
   const [chatEditingField, setChatEditingField] = useState(null);
+  const [chatSessions, setChatSessions] = useStoredChatSessions();
+  const [activeChatId, setActiveChatId] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatDisclaimer, setChatDisclaimer] = useState("");
   const [selectedMedicine, setSelectedMedicine] = useState(medicines[0]);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [recognitionRecords, setRecognitionRecords] = useState([]);
   const [recognitionEvidence, setRecognitionEvidence] = useState(null);
   const [recognitionStatus, setRecognitionStatus] = useState("idle");
   const [recognitionError, setRecognitionError] = useState("");
-  const [uploadedName, setUploadedName] = useState("");
   const [cprStep, setCprStep] = useState(0);
-  const [doses, setDoses] = useStoredDoses();
+  const [doseDays, setDoseDays] = useStoredDoseLog(
+    defaultDoseSchedule,
+    demoDoseDays,
+    todayDateKey,
+  );
+  const [selectedDoseDate, setSelectedDoseDate] = useState(() => {
+    const storedDate = window.history.state?.doseDate;
+    return localDateFromKey(storedDate) ? storedDate : todayDateKey;
+  });
+  const [selectedDoseId, setSelectedDoseId] = useState(() => {
+    const storedId = window.history.state?.doseId;
+    return typeof storedId === "string" ? storedId : null;
+  });
   const [userMedicines, setUserMedicines] = useStoredUserMedicines();
   const [medicineSettings, setMedicineSettings] = useStoredMedicineSettings();
   const fileInputRef = useRef(null);
@@ -226,9 +271,15 @@ export default function App() {
   const recognitionSourceRef = useRef(null);
   const quantityBufferRef = useRef("");
   const quantityTimerRef = useRef(null);
+  const demoResetPressesRef = useRef(0);
+  const demoResetLastPressRef = useRef(0);
   const pendingResetRef = useRef(null);
   const activeScreenRef = useRef(screen);
   activeScreenRef.current = screen;
+  const chatSessionsRef = useRef(chatSessions);
+  chatSessionsRef.current = chatSessions;
+  const activeChatIdRef = useRef(activeChatId);
+  activeChatIdRef.current = activeChatId;
 
   const currentLanguage = i18n.resolvedLanguage || i18n.language;
   const currentLanguageRef = useRef(currentLanguage);
@@ -274,6 +325,59 @@ export default function App() {
   const archivedMedicines = allMedicines.filter(
     (medicine) => isMedicineArchived(medicine) && !isMedicineDeleted(medicine),
   );
+  const sortedDoseDays = [...doseDays].sort((left, right) =>
+    right.date.localeCompare(left.date),
+  );
+  const todayDoseDay = sortedDoseDays.find(
+    (day) => day.date === todayDateKey,
+  );
+  const doses = todayDoseDay?.doses || defaultDoseSchedule;
+  const selectedDoseDay =
+    sortedDoseDays.find((day) => day.date === selectedDoseDate) ||
+    todayDoseDay ||
+    sortedDoseDays[0] ||
+    null;
+  const selectedDoseRecord =
+    selectedDoseDay?.doses.find((dose) => dose.id === selectedDoseId) ||
+    selectedDoseDay?.doses[focus] ||
+    selectedDoseDay?.doses[0] ||
+    null;
+  const doseMedicineName = (dose) =>
+    dose.medicineName || medicineName(dose.medicineId);
+  const formatFullDoseDate = (dateKey) => {
+    const date = localDateFromKey(dateKey);
+    if (!date) return dateKey;
+    return new Intl.DateTimeFormat(currentLanguage, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
+  };
+  const relativeDoseDate = (dateKey) => {
+    const date = localDateFromKey(dateKey);
+    const today = localDateFromKey(todayDateKey);
+    if (!date || !today) return "";
+    const dayNumber = (value) =>
+      Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()) /
+      86_400_000;
+    const difference = dayNumber(date) - dayNumber(today);
+    if (difference === 0) return t("history.today");
+    if (difference === -1) return t("history.yesterday");
+    return new Intl.DateTimeFormat(currentLanguage, {
+      weekday: "long",
+    }).format(date);
+  };
+  const historyDays = sortedDoseDays.map((day) => {
+    const done = day.doses.filter((dose) => dose.taken).length;
+    const total = day.doses.length;
+    return {
+      ...day,
+      done,
+      total,
+      relative: relativeDoseDate(day.date),
+      state: total > 0 && done === total ? "success" : done > 0 ? "focus" : "default",
+    };
+  });
   const reminderOptions = [
     ...new Set([
       ...activeMedicines.flatMap(medicineReminders),
@@ -286,11 +390,14 @@ export default function App() {
       amount,
       unit: t(`dose.${unit}`),
     });
-  const quantityLabels = {
-    valueLabel: t("dose.quantityValue", { value: quantity.toFixed(1) }),
-    decreaseLabel: t("dose.decrease"),
-    increaseLabel: t("dose.increase"),
-  };
+  const quantityLabelsFor = (unit = "unitPill") => ({
+    valueLabel: t("dose.quantityValue", {
+      value: quantity.toFixed(1),
+      unit: t(`dose.${unit}`),
+    }),
+    decreaseLabel: t("dose.decrease", { unit: t(`dose.${unit}`) }),
+    increaseLabel: t("dose.increase", { unit: t(`dose.${unit}`) }),
+  });
   const localizedCandidates = recognitionRecords.map((record) => {
     const name =
       record.displayName || record.englishName || record.licenseNumber;
@@ -371,12 +478,18 @@ export default function App() {
     window.history.replaceState({ ...entry, focus: value }, "");
   };
 
-  const navigate = (next, fromFocus = focus) => {
+  const navigate = (next, fromFocus = focus, state = {}) => {
     persistCurrentFocus(fromFocus);
     const depth = Number(window.history.state?.depth || 0) + 1;
     const nextFocus = getDefaultFocusForScreen(next, currentLanguage);
     window.history.pushState(
-      { [HISTORY_KEY]: true, screen: next, depth, focus: nextFocus },
+      {
+        ...state,
+        [HISTORY_KEY]: true,
+        screen: next,
+        depth,
+        focus: nextFocus,
+      },
       "",
     );
     activeScreenRef.current = next;
@@ -385,11 +498,19 @@ export default function App() {
   };
 
   const replace = useCallback(
-    (next) => {
+    (next, state = {}) => {
       const depth = Number(window.history.state?.depth || 0);
-      const nextFocus = getDefaultFocusForScreen(next, currentLanguage);
+      const nextFocus = Number.isInteger(state.focus)
+        ? state.focus
+        : getDefaultFocusForScreen(next, currentLanguage);
       window.history.replaceState(
-        { [HISTORY_KEY]: true, screen: next, depth, focus: nextFocus },
+        {
+          ...state,
+          [HISTORY_KEY]: true,
+          screen: next,
+          depth,
+          focus: nextFocus,
+        },
         "",
       );
       activeScreenRef.current = next;
@@ -413,6 +534,152 @@ export default function App() {
     window.history.back();
   };
 
+  const scrollScreenContent = (direction) => {
+    const scroller = shellRef.current?.querySelector(".screen-content");
+    if (!scroller) return;
+    const distance = Math.max(32, Math.round(scroller.clientHeight * 0.7));
+    scroller.scrollBy({ top: direction * distance, behavior: "smooth" });
+  };
+
+  const resetDemoData = () => {
+    chatSearchRequestRef.current?.abort();
+    recognitionRequestRef.current?.abort();
+    DEMO_DATA_STORAGE_KEYS.forEach((key) => {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // Reload still resets in-memory state when storage is unavailable.
+      }
+    });
+    window.history.replaceState(
+      {
+        [HISTORY_KEY]: true,
+        screen: SCREEN.HOME,
+        depth: 0,
+        focus: 0,
+      },
+      "",
+    );
+    window.location.reload();
+  };
+
+  const registerDemoResetPress = () => {
+    const now = Date.now();
+    if (now - demoResetLastPressRef.current > DEMO_RESET_MAX_GAP_MS) {
+      demoResetPressesRef.current = 0;
+    }
+    demoResetLastPressRef.current = now;
+    demoResetPressesRef.current += 1;
+    if (demoResetPressesRef.current < DEMO_RESET_PRESS_COUNT) return;
+    demoResetPressesRef.current = 0;
+    demoResetLastPressRef.current = 0;
+    setDecision(1);
+    navigate(SCREEN.RESET_DEMO, focus);
+  };
+
+  const startNewChatSession = () => {
+    const chatId = createChatEntityId("chat");
+    setActiveChatId(chatId);
+    setChatMessages([]);
+    setChatDisclaimer("");
+    return chatId;
+  };
+
+  const applyStoredChatSession = useCallback((session) => {
+    setActiveChatId(session.id);
+    setChatMessages(session.messages);
+    setChatMedicine(session.medicine);
+    setChatRecognitionText("");
+    setChatDisclaimer(session.disclaimer || "");
+  }, []);
+
+  const saveChatMessages = (
+    nextMessages,
+    { medicine: resolvedMedicine, disclaimer } = {},
+  ) => {
+    const now = new Date().toISOString();
+    const chatId = activeChatId || createChatEntityId("chat");
+    const boundedMessages = nextMessages.slice(-40);
+    const medicine = snapshotChatMedicine(resolvedMedicine || chatMedicine);
+
+    if (!activeChatId) setActiveChatId(chatId);
+    setChatMessages(boundedMessages);
+    setChatDisclaimer(disclaimer || "");
+    setChatSessions((current) => {
+      const existing = current.find((session) => session.id === chatId);
+      const session = {
+        id: chatId,
+        createdAt: existing?.createdAt || now,
+        updatedAt: now,
+        locale: currentLanguage,
+        title:
+          existing?.title ||
+          chatTitleFor(boundedMessages, t("chat.untitled")),
+        medicine: medicine || existing?.medicine || null,
+        messages: boundedMessages,
+        disclaimer: disclaimer || existing?.disclaimer || "",
+        requiresPackageText:
+          !medicine?.recordId &&
+          (Boolean(chatRecognitionText.trim()) ||
+            existing?.requiresPackageText === true),
+      };
+      return [session, ...current.filter((item) => item.id !== chatId)];
+    });
+
+    const entry = window.history.state;
+    if (
+      entry?.[HISTORY_KEY] &&
+      entry.screen === SCREEN.MEDICINE_CHAT &&
+      entry.chatId !== chatId
+    ) {
+      window.history.replaceState({ ...entry, chatId }, "");
+    }
+  };
+
+  const openStoredChatSession = (session, fromFocus = focus) => {
+    applyStoredChatSession(session);
+    const needsPackageText =
+      session.requiresPackageText && !session.medicine?.recordId;
+    navigate(
+      needsPackageText
+        ? SCREEN.MEDICINE_CHAT_CONTEXT
+        : SCREEN.MEDICINE_CHAT,
+      fromFocus,
+      { chatId: session.id },
+    );
+  };
+
+  const chooseChatCandidate = (record) => {
+    const chatId = startNewChatSession();
+    setChatMedicine(record);
+    setChatRecognitionText("");
+    const entry = window.history.state;
+    if (entry?.[HISTORY_KEY] && entry.screen === SCREEN.MEDICINE_CHAT) {
+      window.history.replaceState({ ...entry, chatId }, "");
+    }
+  };
+
+  const clearStoredChatSessions = () => {
+    setChatSessions([]);
+    setActiveChatId(null);
+    setChatMessages([]);
+    setChatDisclaimer("");
+    setChatMedicine(null);
+    setChatRecognitionText("");
+    setFocus(0);
+  };
+
+  const formatChatHistoryDate = (timestamp) => {
+    const date = new Date(timestamp);
+    if (!Number.isFinite(date.getTime())) return "";
+    return new Intl.DateTimeFormat(currentLanguage, {
+      month: "numeric",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  };
+
   const clearChatSetup = () => {
     chatSearchRequestRef.current?.abort();
     chatSearchRequestRef.current = null;
@@ -423,6 +690,9 @@ export default function App() {
     setChatMedicine(null);
     setChatRecognitionText("");
     setChatEditingField(null);
+    setActiveChatId(null);
+    setChatMessages([]);
+    setChatDisclaimer("");
   };
 
   const startMedicineChat = (fromFocus = focus) => {
@@ -431,8 +701,9 @@ export default function App() {
   };
 
   const completeChatSetup = () => {
+    const chatId = activeChatId || startNewChatSession();
     setChatEditingField(null);
-    navigate(SCREEN.MEDICINE_CHAT);
+    navigate(SCREEN.MEDICINE_CHAT, focus, { chatId });
   };
 
   const enterChatInputMode = (field) => {
@@ -579,11 +850,29 @@ export default function App() {
       SCREEN_VALUES.has(entry.screen) &&
       Number.isInteger(entry.depth)
     ) {
+      if (localDateFromKey(entry.doseDate)) {
+        setSelectedDoseDate(entry.doseDate);
+      }
+      setSelectedDoseId(
+        typeof entry.doseId === "string" ? entry.doseId : null,
+      );
+      const storedChat =
+        CHAT_SESSION_SCREENS.has(entry.screen) &&
+        typeof entry.chatId === "string"
+          ? chatSessionsRef.current.find(
+              (session) => session.id === entry.chatId,
+            )
+          : null;
       const restoredScreen = [SCREEN.RECOGNIZING, SCREEN.MATCHES].includes(
         entry.screen,
       )
         ? SCREEN.ADD_METHOD
-        : entry.screen;
+        : entry.screen === SCREEN.MEDICINE_CHAT_CLEAR_HISTORY
+          ? SCREEN.MEDICINE_CHAT_HISTORY
+          : CHAT_SESSION_SCREENS.has(entry.screen) && !storedChat
+            ? SCREEN.MEDICINE_CHAT_ASSISTANT_MENU
+            : entry.screen;
+      if (storedChat) applyStoredChatSession(storedChat);
       if (restoredScreen !== entry.screen) {
         window.history.replaceState(
           {
@@ -646,13 +935,41 @@ export default function App() {
         setFocus(nextFocus);
         return;
       }
-      activeScreenRef.current = event.state.screen;
-      setScreen(event.state.screen);
+      let nextScreen = event.state.screen;
+      if (localDateFromKey(event.state.doseDate)) {
+        setSelectedDoseDate(event.state.doseDate);
+      }
+      setSelectedDoseId(
+        typeof event.state.doseId === "string" ? event.state.doseId : null,
+      );
+      if (CHAT_SESSION_SCREENS.has(nextScreen)) {
+        const storedChat = chatSessionsRef.current.find(
+          (session) => session.id === event.state.chatId,
+        );
+        if (storedChat) {
+          applyStoredChatSession(storedChat);
+        } else if (activeChatIdRef.current !== event.state.chatId) {
+          nextScreen = SCREEN.MEDICINE_CHAT_ASSISTANT_MENU;
+          window.history.replaceState(
+            {
+              ...event.state,
+              screen: nextScreen,
+              focus: getDefaultFocusForScreen(
+                nextScreen,
+                currentLanguageRef.current,
+              ),
+            },
+            "",
+          );
+        }
+      }
+      activeScreenRef.current = nextScreen;
+      setScreen(nextScreen);
       setFocus(
-        Number.isInteger(event.state.focus)
+        nextScreen === event.state.screen && Number.isInteger(event.state.focus)
           ? event.state.focus
           : getDefaultFocusForScreen(
-              event.state.screen,
+              nextScreen,
               currentLanguageRef.current,
             ),
       );
@@ -660,7 +977,7 @@ export default function App() {
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+  }, [applyStoredChatSession]);
 
   useEffect(() => {
     const entry = window.history.state;
@@ -679,6 +996,12 @@ export default function App() {
     setChatEditingField(null);
     quantityBufferRef.current = "";
     window.clearTimeout(quantityTimerRef.current);
+  }, [screen]);
+
+  useEffect(() => {
+    if (screen === SCREEN.HOME) return;
+    demoResetPressesRef.current = 0;
+    demoResetLastPressRef.current = 0;
   }, [screen]);
 
   useEffect(() => {
@@ -796,7 +1119,6 @@ export default function App() {
     setRecognitionStatus("idle");
     setRecognitionError("");
     setSelectedCandidate(null);
-    setUploadedName("");
     setSavedManualMedicine(null);
     setSelectedReminderTimes([]);
     setDecision(0);
@@ -961,11 +1283,134 @@ export default function App() {
     resetFlow(SCREEN.MEDICINES);
   };
 
+  const updateDoseDay = (dateKey, updateDoses, fallbackDoses = []) => {
+    setDoseDays((days) => {
+      const existing = days.find((day) => day.date === dateKey);
+      const sourceDoses = existing?.doses || fallbackDoses;
+      const nextDoses = updateDoses(sourceDoses.map((dose) => ({ ...dose })));
+      const updatedDay = {
+        date: dateKey,
+        updatedAt: new Date().toISOString(),
+        doses: nextDoses,
+      };
+      return [updatedDay, ...days.filter((day) => day.date !== dateKey)];
+    });
+  };
+
   const toggleDose = (index) => {
-    setDoses((items) =>
-      items.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, taken: !item.taken } : item,
+    const target = doses[index];
+    if (!target) return;
+    updateDoseDay(
+      todayDateKey,
+      (items) =>
+        items.map((item) =>
+          item.id === target.id
+            ? {
+                ...item,
+                medicineName:
+                  item.medicineName || medicineName(item.medicineId),
+                taken: !item.taken,
+              }
+            : item,
+        ),
+      defaultDoseSchedule,
+    );
+  };
+
+  const openDoseHistoryDay = (day, fromFocus = focus) => {
+    if (!day) return;
+    setSelectedDoseDate(day.date);
+    setSelectedDoseId(null);
+    navigate(SCREEN.HISTORY_DETAIL, fromFocus, { doseDate: day.date });
+  };
+
+  const openDoseRecordUpdate = (index = focus) => {
+    const dose = selectedDoseDay?.doses[index];
+    if (!selectedDoseDay || !dose) return;
+    setSelectedDoseDate(selectedDoseDay.date);
+    setSelectedDoseId(dose.id);
+    setQuantity(dose.amount);
+    setDecision(0);
+    navigate(SCREEN.UPDATE_RECORD, index, {
+      doseDate: selectedDoseDay.date,
+      doseId: dose.id,
+    });
+  };
+
+  const openDoseRecordAction = (index = focus) => {
+    if (!selectedDoseDay || !selectedDoseRecord) return;
+    const state = {
+      doseDate: selectedDoseDay.date,
+      doseId: selectedDoseRecord.id,
+    };
+    if (index === 0) {
+      setQuantity(selectedDoseRecord.amount);
+      navigate(SCREEN.QUANTITY, index, state);
+      return;
+    }
+    if (index === 1) {
+      setDecision(1);
+      navigate(SCREEN.DELETE_DOSE_RECORD, index, state);
+    }
+  };
+
+  const saveDoseQuantity = () => {
+    if (!selectedDoseDay || !selectedDoseRecord) return;
+    updateDoseDay(selectedDoseDay.date, (items) =>
+      items.map((item) =>
+        item.id === selectedDoseRecord.id
+          ? {
+              ...item,
+              medicineName:
+                item.medicineName || medicineName(item.medicineId),
+              amount: quantity,
+            }
+          : item,
       ),
+    );
+    if (Number(window.history.state?.depth || 0) >= 2) {
+      window.history.go(-2);
+      return;
+    }
+    replace(SCREEN.HISTORY_DETAIL, {
+      doseDate: selectedDoseDay.date,
+      doseId: selectedDoseRecord.id,
+    });
+  };
+
+  const deleteDoseRecord = () => {
+    if (!selectedDoseDay || !selectedDoseRecord) return;
+    const remainingDoses = selectedDoseDay.doses.filter(
+      (dose) => dose.id !== selectedDoseRecord.id,
+    );
+    const keepEmptyToday = selectedDoseDay.date === todayDateKey;
+    setDoseDays((days) => {
+      const otherDays = days.filter(
+        (day) => day.date !== selectedDoseDay.date,
+      );
+      if (!remainingDoses.length && !keepEmptyToday) return otherDays;
+      return [
+        {
+          date: selectedDoseDay.date,
+          updatedAt: new Date().toISOString(),
+          doses: remainingDoses,
+        },
+        ...otherDays,
+      ];
+    });
+    setSelectedDoseId(null);
+
+    const returnToHistory = !remainingDoses.length && !keepEmptyToday;
+    const historySteps = returnToHistory ? -3 : -2;
+    if (
+      Number(window.history.state?.depth || 0) >= Math.abs(historySteps)
+    ) {
+      window.history.go(historySteps);
+      return;
+    }
+    replace(
+      returnToHistory ? SCREEN.HISTORY : SCREEN.HISTORY_DETAIL,
+      returnToHistory ? {} : { doseDate: selectedDoseDay.date },
     );
   };
 
@@ -1047,16 +1492,18 @@ export default function App() {
           content: (
             <>
               <p className="prompt">{t("add.chooseMethod")}</p>
-              <ListRow
-                label={`1  ${t("add.photo")}`}
-                selected={focus === 0}
-                onClick={() => openPhotoUpload(0)}
-              />
-              <ListRow
-                label={`2  ${t("add.keyboard")}`}
-                selected={focus === 1}
-                onClick={() => openManualEntry("search", 1)}
-              />
+              <div className="dense-list">
+                <ListRow
+                  label={`1  ${t("add.photo")}`}
+                  selected={focus === 0}
+                  onClick={() => openPhotoUpload(0)}
+                />
+                <ListRow
+                  label={`2  ${t("add.keyboard")}`}
+                  selected={focus === 1}
+                  onClick={() => openManualEntry("search", 1)}
+                />
+              </div>
               <p className="helper">{t("add.navigationHelp")}</p>
             </>
           ),
@@ -1086,7 +1533,6 @@ export default function App() {
                 onChange={(event) => {
                   const [file] = event.target.files;
                   if (!file) return;
-                  setUploadedName(file.name);
                   navigate(SCREEN.RECOGNIZING);
                   void runRecognition({ kind: "photo", file });
                   event.target.value = "";
@@ -1162,6 +1608,11 @@ export default function App() {
 
       case SCREEN.RECOGNIZING: {
         const failed = recognitionStatus === "error";
+        const recognitionSource = recognitionSourceRef.current;
+        const recognitionSourceLabel =
+          recognitionSource?.kind === "photo"
+            ? recognitionSource.file?.name
+            : recognitionSource?.query;
         return {
           title: t("add.recognizingTitle"),
           count: 0,
@@ -1189,7 +1640,7 @@ export default function App() {
               <p className={`helper${failed ? " input-error" : ""}`}>
                 {failed
                   ? recognitionError
-                  : uploadedName || manualName || t("add.recognizingHelp")}
+                  : recognitionSourceLabel || t("add.recognizingHelp")}
               </p>
             </div>
           ),
@@ -1433,7 +1884,7 @@ export default function App() {
       case SCREEN.REMINDER_ALERT:
         return {
           title: t("dose.reminderTitle"),
-          date: "09/19",
+          date: shortDateFor(todayDateKey),
           time: "08:00",
           count: 2,
           left: t("common.record"),
@@ -1450,7 +1901,7 @@ export default function App() {
                 value={quantity}
                 selected={focus === 1}
                 onChange={adjustQuantity}
-                {...quantityLabels}
+                {...quantityLabelsFor("unitPill")}
               />
               <p className="helper">{t("dose.enterToRecord")}</p>
             </>
@@ -1491,7 +1942,7 @@ export default function App() {
       case SCREEN.RECORD_TODAY:
         return {
           title: t("dose.recordTodayTitle"),
-          date: "09/19",
+          date: shortDateFor(todayDateKey),
           time: t("common.now"),
           count: doses.length,
           left: t("common.finish"),
@@ -1507,7 +1958,7 @@ export default function App() {
           content: doses.map((dose, index) => (
             <MedicineRow
               key={dose.id}
-              medicine={`${index + 1}  ${medicineName(dose.medicineId)}`}
+              medicine={`${index + 1}  ${doseMedicineName(dose)}`}
               detail={doseDetail(dose)}
               checked={dose.taken}
               selected={focus === index}
@@ -1542,66 +1993,67 @@ export default function App() {
       case SCREEN.HISTORY:
         return {
           title: t("history.title"),
-          date: "09/19",
+          date: shortDateFor(todayDateKey),
           time: "",
           count: historyDays.length,
           left: t("common.open"),
           right: t("common.back"),
-          onEnter: () => navigate(SCREEN.HISTORY_DETAIL),
+          onEnter: () => openDoseHistoryDay(historyDays[focus]),
           onNumber: (number) => {
-            if (historyDays[number - 1])
-              navigate(SCREEN.HISTORY_DETAIL, number - 1);
+            const day = historyDays[number - 1];
+            if (day) openDoseHistoryDay(day, number - 1);
           },
-          content: historyDays.map((day, index) => (
-            <ListRow
-              key={day.id}
-              label={`${index + 1}  ${t("history.dayLabel", {
-                date: day.date,
-                relative: t(`history.${day.relative}`),
-                done: day.done,
-                total: day.total,
-              })}`}
-              state={day.state}
-              selected={focus === index}
-              onClick={() => navigate(SCREEN.HISTORY_DETAIL, index)}
-            />
-          )),
+          content: historyDays.length ? (
+            historyDays.map((day, index) => (
+              <ListRow
+                key={day.date}
+                label={`${index + 1}  ${t("history.dayLabel", {
+                  date: shortDateFor(day.date),
+                  relative: day.relative,
+                  done: day.done,
+                  total: day.total,
+                })}`}
+                state={day.state}
+                selected={focus === index}
+                onClick={() => openDoseHistoryDay(day, index)}
+              />
+            ))
+          ) : (
+            <p className="helper centered">{t("history.empty")}</p>
+          ),
         };
 
       case SCREEN.HISTORY_DETAIL:
         return {
           title: t("history.detailTitle"),
-          count: 2,
+          count: selectedDoseDay?.doses.length || 0,
           left: t("common.update"),
           right: t("common.back"),
-          onLeft: () => navigate(SCREEN.UPDATE_RECORD),
-          onEnter: () => navigate(SCREEN.UPDATE_RECORD),
+          onLeft: () => openDoseRecordUpdate(),
+          onEnter: () => openDoseRecordUpdate(),
           onNumber: (number) => {
-            if (number >= 1 && number <= 2) setFocus(number - 1);
+            const dose = selectedDoseDay?.doses[number - 1];
+            if (!dose) return;
+            setFocus(number - 1);
+            setSelectedDoseId(dose.id);
           },
           content: (
             <>
-              <p className="prompt">2026/09/19</p>
-              <MedicineRow
-                medicine={`1  ${medicineName("pressure")}`}
-                detail={doseDetail({
-                  time: "08:05",
-                  amount: 1,
-                  unit: "unitPill",
-                })}
-                checked
-                selected={focus === 0}
-              />
-              <MedicineRow
-                medicine={`2  ${medicineName("vitamin-d")}`}
-                detail={doseDetail({
-                  time: "12:10",
-                  amount: 1,
-                  unit: "unitCapsule",
-                })}
-                checked
-                selected={focus === 1}
-              />
+              <p className="prompt">
+                {selectedDoseDay
+                  ? formatFullDoseDate(selectedDoseDay.date)
+                  : t("history.empty")}
+              </p>
+              {selectedDoseDay?.doses.map((dose, index) => (
+                <MedicineRow
+                  key={dose.id}
+                  medicine={`${index + 1}  ${doseMedicineName(dose)}`}
+                  detail={doseDetail(dose)}
+                  checked={dose.taken}
+                  selected={focus === index}
+                  onClick={() => openDoseRecordUpdate(index)}
+                />
+              ))}
             </>
           ),
         };
@@ -1610,30 +2062,64 @@ export default function App() {
         return {
           title: t("history.updateTitle"),
           count: 2,
-          left: t("common.save"),
+          left: t("common.select"),
           right: t("common.back"),
-          horizontal: true,
-          onEnter: () =>
-            navigate(decision === 0 ? SCREEN.QUANTITY : SCREEN.HISTORY_DETAIL),
+          onEnter: () => openDoseRecordAction(),
+          onNumber: (number) => openDoseRecordAction(number - 1),
           content: (
             <>
-              <MedicineRow
-                medicine={medicineName("vitamin-d")}
-                detail={doseDetail({
-                  time: "12:10",
-                  amount: 1,
-                  unit: "unitCapsule",
-                })}
-                checked
-                selected
-              />
-              <p className="prompt">{t("history.changeQuantity")}</p>
+              {selectedDoseRecord ? (
+                <>
+                  <MedicineRow
+                    medicine={doseMedicineName(selectedDoseRecord)}
+                    detail={doseDetail(selectedDoseRecord)}
+                    checked={selectedDoseRecord.taken}
+                  />
+                  <ListRow
+                    label={`1  ${t("history.editQuantity")}`}
+                    selected={focus === 0}
+                    onClick={() => openDoseRecordAction(0)}
+                  />
+                  <ListRow
+                    label={`2  ${t("history.deleteRecord")}`}
+                    state="danger"
+                    selected={focus === 1}
+                    onClick={() => openDoseRecordAction(1)}
+                  />
+                </>
+              ) : (
+                <p className="helper centered">{t("history.empty")}</p>
+              )}
+            </>
+          ),
+        };
+
+      case SCREEN.DELETE_DOSE_RECORD:
+        return {
+          title: t("history.deleteTitle"),
+          count: 2,
+          left: t("common.confirm"),
+          right: t("common.back"),
+          horizontal: true,
+          onEnter: () => {
+            if (decision === 0) deleteDoseRecord();
+            else goBack();
+          },
+          content: (
+            <>
+              {selectedDoseRecord && (
+                <MedicineRow
+                  medicine={doseMedicineName(selectedDoseRecord)}
+                  detail={t("history.deleteWarning")}
+                  checked={selectedDoseRecord.taken}
+                />
+              )}
               <Decision
                 selected={decision}
-                left={t("add.yes")}
-                right={t("add.no")}
+                left={t("history.deleteConfirm")}
+                right={t("common.cancel")}
                 onSelect={setDecision}
-                ariaLabel={t("common.select")}
+                ariaLabel={t("history.deleteTitle")}
               />
             </>
           ),
@@ -1646,14 +2132,14 @@ export default function App() {
           left: t("common.save"),
           right: t("common.back"),
           horizontal: true,
-          onEnter: () => replace(SCREEN.HISTORY_DETAIL),
+          onEnter: saveDoseQuantity,
           content: (
             <>
               <p className="prompt">{t("dose.quantityPrompt")}</p>
               <QuantityPicker
                 value={quantity}
                 onChange={adjustQuantity}
-                {...quantityLabels}
+                {...quantityLabelsFor(selectedDoseRecord?.unit)}
               />
               <p className="helper">{t("dose.quantityHelp")}</p>
             </>
@@ -2020,12 +2506,17 @@ export default function App() {
       case SCREEN.MEDICINE_CHAT_MENU: {
         const openChatSection = (index = focus) => {
           if (index === 0) {
+            startNewChatSession();
+            setChatMedicine(null);
+            setChatRecognitionText("");
             navigate(SCREEN.MEDICINE_CHAT_SEARCH_MENU, index);
             return;
           }
           if (index === 1) {
+            const chatId = startNewChatSession();
             setChatMedicine(null);
-            navigate(SCREEN.MEDICINE_CHAT_CONTEXT, index);
+            setChatRecognitionText("");
+            navigate(SCREEN.MEDICINE_CHAT_CONTEXT, index, { chatId });
             return;
           }
           setChatMedicine(null);
@@ -2103,10 +2594,14 @@ export default function App() {
       case SCREEN.MEDICINE_CHAT_ASSISTANT_MENU: {
         const menuItems = [t("chat.history"), t("chat.newChat")];
         const openAssistantSection = (index = focus) => {
-          navigate(
-            index === 0 ? SCREEN.MEDICINE_CHAT_HISTORY : SCREEN.MEDICINE_CHAT,
-            index,
-          );
+          if (index === 0) {
+            navigate(SCREEN.MEDICINE_CHAT_HISTORY, index);
+            return;
+          }
+          const chatId = startNewChatSession();
+          setChatMedicine(null);
+          setChatRecognitionText("");
+          navigate(SCREEN.MEDICINE_CHAT, index, { chatId });
         };
 
         return {
@@ -2134,16 +2629,117 @@ export default function App() {
         };
       }
 
-      case SCREEN.MEDICINE_CHAT_HISTORY:
+      case SCREEN.MEDICINE_CHAT_HISTORY: {
+        if (!chatSessions.length) {
+          return {
+            title: t("chat.history"),
+            count: 0,
+            left: null,
+            right: t("common.back"),
+            content: (
+              <p className="chat-history-empty">{t("chat.historyEmpty")}</p>
+            ),
+          };
+        }
+
+        const clearIndex = chatSessions.length;
+        const activateHistoryItem = (index = focus) => {
+          if (index === clearIndex) {
+            setDecision(1);
+            navigate(SCREEN.MEDICINE_CHAT_CLEAR_HISTORY, clearIndex);
+            return;
+          }
+          const session = chatSessions[index];
+          if (session) openStoredChatSession(session, index);
+        };
+
         return {
           title: t("chat.history"),
-          count: 0,
-          left: null,
+          count: chatSessions.length + 1,
+          left:
+            focus === clearIndex
+              ? t("common.confirm")
+              : t("common.open"),
           right: t("common.back"),
+          onEnter: () => activateHistoryItem(),
+          onNumber: (number) => {
+            if (number >= 1 && number <= chatSessions.length) {
+              activateHistoryItem(number - 1);
+            }
+          },
           content: (
-            <p className="chat-history-empty">{t("chat.historyEmpty")}</p>
+            <div className="chat-history-list">
+              {chatSessions.map((session, index) => {
+                const lastMessage =
+                  session.messages[session.messages.length - 1];
+                const preview =
+                  lastMessage?.reply?.answer || lastMessage?.content || "";
+                const medicine =
+                  session.medicine?.displayName ||
+                  session.medicine?.englishName ||
+                  t("chat.generalChat");
+                return (
+                  <button
+                    type="button"
+                    className={`chat-history-row${
+                      focus === index ? " is-selected" : ""
+                    }`}
+                    onClick={() => activateHistoryItem(index)}
+                    tabIndex={-1}
+                    aria-current={focus === index ? "true" : undefined}
+                    key={session.id}
+                  >
+                    <span className="chat-history-copy">
+                      <strong>{`${index + 1}  ${session.title}`}</strong>
+                      <small>
+                        {medicine} · {formatChatHistoryDate(session.updatedAt)}
+                      </small>
+                      <small>{preview}</small>
+                    </span>
+                    <span aria-hidden="true">›</span>
+                  </button>
+                );
+              })}
+              <ListRow
+                label={t("chat.clearHistory")}
+                selected={focus === clearIndex}
+                state="danger"
+                trailing=""
+                onClick={() => activateHistoryItem(clearIndex)}
+              />
+            </div>
           ),
         };
+      }
+
+      case SCREEN.MEDICINE_CHAT_CLEAR_HISTORY: {
+        const finishClearHistory = () => {
+          if (decision === 0) clearStoredChatSessions();
+          goBack();
+        };
+
+        return {
+          title: t("chat.clearHistoryTitle"),
+          count: 2,
+          left: t("common.confirm"),
+          right: t("common.back"),
+          horizontal: true,
+          onEnter: finishClearHistory,
+          onLeft: finishClearHistory,
+          content: (
+            <>
+              <p className="prompt">{t("chat.clearHistoryConfirm")}</p>
+              <Decision
+                selected={decision}
+                left={t("chat.clearHistoryAction")}
+                right={t("common.cancel")}
+                onSelect={setDecision}
+                ariaLabel={t("chat.clearHistoryTitle")}
+              />
+            </>
+          ),
+        };
+      }
 
       case SCREEN.MEDICINE_CHAT_MEDICINE: {
         const records = chatSearchResult?.records || [];
@@ -2157,9 +2753,10 @@ export default function App() {
 
           const record = records[index - 1];
           if (record) {
+            const chatId = startNewChatSession();
             setChatRecognitionText("");
             setChatMedicine(record);
-            navigate(SCREEN.MEDICINE_CHAT_CONTEXT, index);
+            navigate(SCREEN.MEDICINE_CHAT_CONTEXT, index, { chatId });
           }
         };
 
@@ -2245,13 +2842,14 @@ export default function App() {
         const activateBagMedicine = (index = focus) => {
           const candidate = chatBagCandidates[index];
           if (!candidate) return;
+          const chatId = startNewChatSession();
           setChatRecognitionText("");
           setChatMedicine({
             ...candidate.sourceMedicine,
             displayName: candidate.name,
             englishName: candidate.name,
           });
-          navigate(SCREEN.MEDICINE_CHAT_CONTEXT, index);
+          navigate(SCREEN.MEDICINE_CHAT_CONTEXT, index, { chatId });
         };
 
         if (!chatBagCandidates.length) {
@@ -2373,6 +2971,10 @@ export default function App() {
                 ref={medicineChatRef}
                 selectedMedicine={chatMedicine}
                 recognitionText={chatRecognitionText}
+                messages={chatMessages}
+                initialDisclaimer={chatDisclaimer}
+                onMessagesChange={saveChatMessages}
+                onChooseMedicine={chooseChatCandidate}
                 onSelectMedicine={setChatMedicine}
               />
             </div>
@@ -2455,6 +3057,43 @@ export default function App() {
         };
       }
 
+      case SCREEN.RESET_DEMO: {
+        const finishDemoReset = () => {
+          if (decision === 0) resetDemoData();
+          else goBack();
+        };
+
+        return {
+          title: t("demoReset.title"),
+          count: 2,
+          left: t("common.confirm"),
+          right: t("common.back"),
+          emergency: true,
+          horizontal: true,
+          onEnter: finishDemoReset,
+          onLeft: finishDemoReset,
+          onArrowUp: () => scrollScreenContent(-1),
+          onArrowDown: () => scrollScreenContent(1),
+          content: (
+            <div className="demo-reset-content">
+              <FeedbackCard danger title={t("demoReset.warningTitle")}>
+                <span>{t("demoReset.description")}</span>
+              </FeedbackCard>
+              <Decision
+                selected={decision}
+                left={t("demoReset.yes")}
+                right={t("demoReset.no")}
+                onSelect={setDecision}
+                ariaLabel={t("demoReset.choiceLabel")}
+              />
+              <p className="helper centered">
+                {t("demoReset.irreversible")}
+              </p>
+            </div>
+          ),
+        };
+      }
+
       case SCREEN.LANGUAGE: {
         const languages = [
           { code: "zh-TW", label: t("language.zhTW") },
@@ -2520,6 +3159,18 @@ export default function App() {
       event.target instanceof HTMLTextAreaElement;
     if (isTextField && event.key !== "Escape" && event.key !== "SoftLeft")
       return;
+
+    const isDemoResetKey =
+      event.key === "0" || event.code === "Numpad0";
+    if (screen === SCREEN.HOME && isDemoResetKey) {
+      event.preventDefault();
+      if (!event.repeat) registerDemoResetPress();
+      return;
+    }
+    if (screen === SCREEN.HOME && !event.repeat) {
+      demoResetPressesRef.current = 0;
+      demoResetLastPressRef.current = 0;
+    }
 
     if (/^[0oO]$/.test(event.key) && screenConfig.onInputKey) {
       event.preventDefault();
