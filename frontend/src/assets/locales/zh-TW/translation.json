@@ -49,7 +49,7 @@
     "description": "描述（選填）",
     "descriptionPlaceholder": "例如：白色圓形、睡前服用",
     "manualHelp": "可使用數字鍵輸入",
-    "manualSaveHelp": "儲存後直接加入，不會再次搜尋",
+    "manualSaveHelp": "直接儲存、不再搜尋，接著設定提醒",
     "manualSaved": "已直接儲存使用者輸入的內容",
     "recognizingTitle": "資訊辨識",
     "recognizing": "正在辨識藥品資訊…",
@@ -68,8 +68,11 @@
     "breakfast": "08:00  早餐後",
     "dinner": "20:00  晚餐後",
     "addReminder": "＋ 新增提醒",
+    "reminderHelp": "Enter 切換，完成後儲存所選時間",
     "completeTitle": "新增完成",
     "added": "藥品已新增",
+    "remindersSaved": "提醒：{{times}}",
+    "noReminderSaved": "已儲存，不設定提醒",
     "nextReminder": "下一次提醒：今天 20:00"
   },
   "dose": {
@@ -105,6 +108,8 @@
     "add": "＋ 新增藥品",
     "manualEntry": "自行輸入",
     "noDescription": "沒有描述",
+    "noDirections": "未提供",
+    "none": "無",
     "usage": "用法：{{usage}}",
     "reminders": "提醒：{{times}}",
     "pressure": {

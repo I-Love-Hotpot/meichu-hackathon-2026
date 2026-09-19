@@ -32,7 +32,7 @@ The physical right soft key uses native browser history rather than a keyboard l
 
 The photo flow uses the device's native camera or image picker via `<input type="file" accept="image/*" capture="environment">`; the selected image is not previewed in the app.
 
-Manual medicine entry stores a required name and optional description directly in `localStorage`; it deliberately skips recognition and API search.
+Manual medicine entry stores a required name and optional description directly in `localStorage`; it deliberately skips recognition and API search, then continues to daily-use and reminder setup. The description is displayed as Directions and selected reminder times are stored with the medicine.
 
 The UI supports `zh-TW` and `en-US` through the existing i18next setup. Choose item `5` on the home screen to change language; the choice persists in `localStorage`.
 

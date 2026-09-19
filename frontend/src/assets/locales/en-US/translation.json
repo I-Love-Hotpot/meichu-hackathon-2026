@@ -49,7 +49,7 @@
     "description": "Description (optional)",
     "descriptionPlaceholder": "Example: white round pill, take at night",
     "manualHelp": "Number keys are supported",
-    "manualSaveHelp": "Saves directly without another search",
+    "manualSaveHelp": "Saves without another search, then sets reminders",
     "manualSaved": "Your entry was saved directly",
     "recognizingTitle": "Recognizing",
     "recognizing": "Reading medicine details…",
@@ -68,8 +68,11 @@
     "breakfast": "08:00  After breakfast",
     "dinner": "20:00  After dinner",
     "addReminder": "＋ Add reminder",
+    "reminderHelp": "Enter toggles; Done saves selected times",
     "completeTitle": "Medicine added",
     "added": "Medicine saved",
+    "remindersSaved": "Reminders: {{times}}",
+    "noReminderSaved": "Saved without reminders",
     "nextReminder": "Next reminder: Today at 20:00"
   },
   "dose": {
@@ -105,6 +108,8 @@
     "add": "＋ Add medicine",
     "manualEntry": "Manual entry",
     "noDescription": "No description",
+    "noDirections": "Not provided",
+    "none": "None",
     "usage": "Directions: {{usage}}",
     "reminders": "Reminders: {{times}}",
     "pressure": {

@@ -42,6 +42,7 @@ const SCREEN = {
 
 const HISTORY_KEY = 'medaboutyou'
 const SCREEN_VALUES = new Set(Object.values(SCREEN))
+const REMINDER_PRESETS = ['08:00', '20:00']
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
 
 function useStoredDoses() {
@@ -90,6 +91,7 @@ export default function App() {
   const [manualName, setManualName] = useState('')
   const [manualDescription, setManualDescription] = useState('')
   const [savedManualMedicine, setSavedManualMedicine] = useState(null)
+  const [selectedReminderTimes, setSelectedReminderTimes] = useState([])
   const [selectedMedicine, setSelectedMedicine] = useState(medicines[0])
   const [selectedCandidate, setSelectedCandidate] = useState(medicineCandidates[0])
   const [uploadedName, setUploadedName] = useState('')
@@ -239,6 +241,9 @@ export default function App() {
   const openManualEntry = () => {
     setManualName('')
     setManualDescription('')
+    setSavedManualMedicine(null)
+    setSelectedReminderTimes([])
+    setDecision(0)
     navigate(SCREEN.MANUAL)
   }
 
@@ -247,15 +252,55 @@ export default function App() {
     if (!name) return
 
     const medicine = {
-      id: `manual-${Date.now()}`,
+      id: savedManualMedicine?.id || `manual-${Date.now()}`,
       isCustom: true,
       customName: name,
       customDescription: manualDescription.trim(),
-      reminders: [],
+      reminders: savedManualMedicine?.reminders || [],
     }
-    setUserMedicines((items) => [...items, medicine])
+    setUserMedicines((items) => {
+      const alreadySaved = items.some((item) => item.id === medicine.id)
+      return alreadySaved
+        ? items.map((item) => (item.id === medicine.id ? medicine : item))
+        : [...items, medicine]
+    })
     setSavedManualMedicine(medicine)
     setSelectedMedicine(medicine)
+    setSelectedReminderTimes(medicine.reminders)
+    setDecision(medicine.reminders.length > 0 ? 0 : decision)
+    navigate(SCREEN.DAILY)
+  }
+
+  const updateSavedManualMedicine = (updates) => {
+    if (!savedManualMedicine) return
+    const medicine = { ...savedManualMedicine, ...updates }
+    setSavedManualMedicine(medicine)
+    setSelectedMedicine(medicine)
+    setUserMedicines((items) => items.map((item) => (
+      item.id === medicine.id ? medicine : item
+    )))
+  }
+
+  const toggleReminder = (time) => {
+    setSelectedReminderTimes((times) => (
+      times.includes(time)
+        ? times.filter((item) => item !== time)
+        : [...times, time].sort()
+    ))
+  }
+
+  const completeDailyChoice = () => {
+    if (decision === 0) {
+      navigate(SCREEN.REMINDER_SETUP)
+      return
+    }
+    setSelectedReminderTimes([])
+    updateSavedManualMedicine({ reminders: [] })
+    navigate(SCREEN.ADD_COMPLETE)
+  }
+
+  const completeReminderSetup = () => {
+    updateSavedManualMedicine({ reminders: selectedReminderTimes })
     navigate(SCREEN.ADD_COMPLETE)
   }
 
@@ -310,12 +355,16 @@ export default function App() {
           onEnter: () => {
             if (focus === 0) {
               setSavedManualMedicine(null)
+              setSelectedReminderTimes([])
+              setDecision(0)
               navigate(SCREEN.UPLOAD)
             } else openManualEntry()
           },
           onNumber: (number) => {
             if (number === 1) {
               setSavedManualMedicine(null)
+              setSelectedReminderTimes([])
+              setDecision(0)
               navigate(SCREEN.UPLOAD)
             }
             if (number === 2) openManualEntry()
@@ -396,6 +445,8 @@ export default function App() {
           const candidate = medicineCandidates[focus]
           if (candidate) {
             setSavedManualMedicine(null)
+            setSelectedReminderTimes([])
+            setDecision(0)
             setSelectedCandidate(candidate)
             navigate(SCREEN.DAILY)
             return
@@ -435,7 +486,7 @@ export default function App() {
         return {
           title: t('add.dailyTitle'), count: 2, left: t('common.confirm'), right: t('common.back'),
           horizontal: true,
-          onEnter: () => navigate(decision === 0 ? SCREEN.REMINDER_SETUP : SCREEN.ADD_COMPLETE),
+          onEnter: completeDailyChoice,
           content: <>
             <p className="prompt">{t('add.dailyQuestion')}</p>
             <Decision
@@ -451,16 +502,28 @@ export default function App() {
 
       case SCREEN.REMINDER_SETUP:
         return {
-          title: t('add.reminderTitle'), count: 3, left: t('common.finish'), right: t('common.back'),
-          onEnter: () => navigate(SCREEN.ADD_COMPLETE),
+          title: t('add.reminderTitle'), count: REMINDER_PRESETS.length,
+          left: t('common.finish'), right: t('common.back'),
+          onLeft: completeReminderSetup,
+          onEnter: () => toggleReminder(REMINDER_PRESETS[focus]),
           onNumber: (number) => {
-            if (number >= 1 && number <= 3) setFocus(number - 1)
+            if (number >= 1 && number <= REMINDER_PRESETS.length) setFocus(number - 1)
           },
           content: <>
             <p className="prompt">{t('add.chooseReminder')}</p>
-            {[t('add.breakfast'), t('add.dinner'), t('add.addReminder')].map((label, index) => (
-              <ListRow key={label} label={`${index + 1}  ${label}`} selected={focus === index} onClick={() => setFocus(index)} />
+            {[t('add.breakfast'), t('add.dinner')].map((label, index) => (
+              <ListRow
+                key={label}
+                label={`${index + 1}  ${label}`}
+                trailing={selectedReminderTimes.includes(REMINDER_PRESETS[index]) ? '✓' : '○'}
+                selected={focus === index}
+                onClick={() => {
+                  setFocus(index)
+                  toggleReminder(REMINDER_PRESETS[index])
+                }}
+              />
             ))}
+            <p className="helper">{t('add.reminderHelp')}</p>
           </>,
         }
 
@@ -475,7 +538,11 @@ export default function App() {
               {savedManualMedicine?.customDescription && <small>{savedManualMedicine.customDescription}</small>}
             </FeedbackCard>
             <p className="helper centered">
-              {savedManualMedicine ? t('add.manualSaved') : t('add.nextReminder')}
+              {savedManualMedicine
+                ? (savedManualMedicine.reminders.length > 0
+                    ? t('add.remindersSaved', { times: savedManualMedicine.reminders.join(' / ') })
+                    : t('add.noReminderSaved'))
+                : t('add.nextReminder')}
             </p>
           </>,
         }
@@ -645,18 +712,30 @@ export default function App() {
 
       case SCREEN.MEDICINE_DETAIL:
         if (selectedMedicine.isCustom) {
+          const reminderSummary = selectedMedicine.reminders?.length
+            ? selectedMedicine.reminders.join(' / ')
+            : t('medicines.none')
           return {
-            title: t('medicines.detailTitle'), count: 1,
+            title: t('medicines.detailTitle'), count: 3,
             left: '', right: t('common.back'),
             content: <>
               <MedicineRow
                 medicine={selectedMedicine.customName}
                 detail={t('medicines.manualEntry')}
-                selected
+                selected={focus === 0}
               />
-              <p className="manual-description">
-                {selectedMedicine.customDescription || t('medicines.noDescription')}
-              </p>
+              <ListRow
+                label={t('medicines.usage', {
+                  usage: selectedMedicine.customDescription || t('medicines.noDirections'),
+                })}
+                trailing=""
+                selected={focus === 1}
+              />
+              <ListRow
+                label={t('medicines.reminders', { times: reminderSummary })}
+                trailing=""
+                selected={focus === 2}
+              />
             </>,
           }
         }

@@ -54,14 +54,14 @@ Destructive and emergency information uses both text and color; color is never t
 2. Home → history → daily detail → update record → quantity.
 3. Home → medicines → medicine detail.
 4. Medicines → add medicine → photo/file → recognition → possible medicine matches → daily-use decision → reminder → completion.
-5. Medicines → add medicine → manual name and optional description → direct local save → completion. Manual entries never call the search API.
+5. Medicines → add medicine → manual name and optional description → direct local save → daily-use decision → reminder selection → completion. Manual entries never call the recognition or search API.
 6. Home → emergency information.
 7. Home `9` → reminder alert demo → record or postpone.
 8. Home `5` → switch between Traditional Chinese (`zh-TW`) and US English (`en-US`).
 
 All current data is fixture data in `src/data/fixtures.js`. Today’s completion toggles persist in `localStorage` under `medaboutyou-today-doses`.
 
-User-entered medicines persist exactly the submitted `name` and optional `description` under `medaboutyou-user-medicines`. These values are displayed as data, are not translated, and do not enter recognition or candidate-search states.
+User-entered medicines persist the submitted `name` and optional `description` immediately under `medaboutyou-user-medicines`. They then continue to the same daily-use and reminder steps as recognized medicines. The description is shown as Directions in medicine details, and selected reminder times are written back to the same local record. User-entered values are displayed as data, are not translated, and do not enter recognition or candidate-search states.
 
 ### Possible medicine cards
 
