@@ -224,6 +224,7 @@ export default function App() {
   const [savedManualMedicine, setSavedManualMedicine] = useState(null);
   const [selectedReminderTimes, setSelectedReminderTimes] = useState([]);
   const [editDirections, setEditDirections] = useState("");
+  const [editDirectionsEditing, setEditDirectionsEditing] = useState(false);
   const [customReminderTime, setCustomReminderTime] = useState("");
   const [reminderReturnScreen, setReminderReturnScreen] = useState(
     SCREEN.REMINDER_SETUP,
@@ -535,8 +536,16 @@ export default function App() {
   };
 
   const scrollScreenContent = (direction) => {
-    const scroller = shellRef.current?.querySelector(".screen-content");
-    if (!scroller) return;
+    const screenContent = shellRef.current?.querySelector(".screen-content");
+    if (!screenContent) return;
+    const candidates = [
+      screenContent,
+      ...screenContent.querySelectorAll(".emergency-detail, .cpr-step"),
+    ];
+    const scroller =
+      candidates.find(
+        (candidate) => candidate.scrollHeight > candidate.clientHeight + 1,
+      ) || screenContent;
     const distance = Math.max(32, Math.round(scroller.clientHeight * 0.7));
     scroller.scrollBy({ top: direction * distance, behavior: "smooth" });
   };
@@ -1209,6 +1218,7 @@ export default function App() {
 
   const openDirectionsEditor = (fromFocus = focus) => {
     setEditDirections(medicineDirections(selectedMedicine));
+    setEditDirectionsEditing(false);
     navigate(SCREEN.EDIT_DIRECTIONS, fromFocus);
   };
 
@@ -1219,6 +1229,7 @@ export default function App() {
   };
 
   const saveDirections = () => {
+    setEditDirectionsEditing(false);
     updateSelectedMedicine({
       ...(selectedMedicine.isCustom
         ? { customDirections: editDirections.trim() }
@@ -2299,7 +2310,10 @@ export default function App() {
           count: 1,
           left: t("common.save"),
           right: t("common.back"),
-          onEnter: saveDirections,
+          onLeft: saveDirections,
+          onEnter: () => setEditDirectionsEditing((editing) => !editing),
+          onInputKey: () =>
+            setEditDirectionsEditing((editing) => !editing),
           content: (
             <form
               className="manual-form"
@@ -2308,15 +2322,17 @@ export default function App() {
                 saveDirections();
               }}
             >
-              <label htmlFor="medicine-directions">
-                {t("medicines.directionsLabel")}
-              </label>
-              <textarea
+              <FocusableField
                 id="medicine-directions"
+                label={t("medicines.directionsLabel")}
                 value={editDirections}
                 placeholder={t("medicines.directionsPlaceholder")}
+                selected
+                editing={editDirectionsEditing}
+                multiline
                 onChange={(event) => setEditDirections(event.target.value)}
-                autoFocus
+                onSelect={() => setFocus(0)}
+                onEditingChange={setEditDirectionsEditing}
               />
               <p className="helper">{t("medicines.editDirectionsHelp")}</p>
             </form>
@@ -2454,6 +2470,8 @@ export default function App() {
           left: "",
           right: t("common.back"),
           emergency: true,
+          onArrowUp: () => scrollScreenContent(-1),
+          onArrowDown: () => scrollScreenContent(1),
           content: (
             <div className="emergency-detail">
               <p className="emergency-detail__label">
@@ -2775,7 +2793,7 @@ export default function App() {
             if (number >= 1 && number <= itemCount) setFocus(number - 1);
           },
           content: (
-            <>
+            <div className="chat-medicine-search-page">
               <form
                 className="manual-form chat-search-form"
                 onSubmit={(event) => {
@@ -2833,7 +2851,7 @@ export default function App() {
                   />
                 ))}
               </div>
-            </>
+            </div>
           ),
         };
       }
@@ -2963,8 +2981,10 @@ export default function App() {
           onLeft: () => medicineChatRef.current?.send(),
           onEnter: () => medicineChatRef.current?.activate(),
           onInputKey: () => medicineChatRef.current?.activate(),
-          onArrowUp: () => medicineChatRef.current?.move(-1),
-          onArrowDown: () => medicineChatRef.current?.move(1),
+          onArrowUp: () => medicineChatRef.current?.scroll(-1),
+          onArrowDown: () => medicineChatRef.current?.scroll(1),
+          onArrowLeft: () => medicineChatRef.current?.move(-1),
+          onArrowRight: () => medicineChatRef.current?.move(1),
           content: (
             <div className="medicine-chat-screen">
               <MedicineChat
@@ -2988,6 +3008,8 @@ export default function App() {
           left: "",
           right: t("common.back"),
           emergency: true,
+          onArrowUp: () => scrollScreenContent(-1),
+          onArrowDown: () => scrollScreenContent(1),
           content: (
             <div className="emergency-detail">
               <ol>
@@ -3007,6 +3029,8 @@ export default function App() {
           left: "",
           right: t("common.back"),
           emergency: true,
+          onArrowUp: () => scrollScreenContent(-1),
+          onArrowDown: () => scrollScreenContent(1),
           content: (
             <div className="emergency-detail">
               <ol>
@@ -3038,6 +3062,8 @@ export default function App() {
           emergency: true,
           onEnter: advanceCpr,
           onLeft: advanceCpr,
+          onArrowUp: () => scrollScreenContent(-1),
+          onArrowDown: () => scrollScreenContent(1),
           content: (
             <div className="cpr-step" aria-live="polite">
               <p className="cpr-step__progress">
