@@ -19,6 +19,16 @@
     "noLeftAction": "No left soft-key action",
     "noRightAction": "No right soft-key action"
   },
+  "phoneSetup": {
+    "title": "Get started",
+    "prompt": "Enter your mobile number",
+    "description": "Your number is saved on this device so future visits can open the main menu directly.",
+    "label": "Mobile number",
+    "placeholder": "Example: 0912345678",
+    "continue": "Continue",
+    "invalid": "Enter a valid mobile number.",
+    "storageError": "The mobile number could not be saved. Allow this browser to store site data and try again."
+  },
   "home": {
     "title": "Main menu",
     "medicineRecognition": "Medicine recognition",
@@ -33,7 +43,7 @@
   "demoReset": {
     "title": "Reset demo data",
     "warningTitle": "Reset all demo data?",
-    "description": "This will clear medicine records, conversation history, medicine bag entries, and saved medicine settings.",
+    "description": "This will clear the saved phone number, medicine records, conversation history, medicine bag entries, and medicine settings.",
     "irreversible": "This action cannot be undone. Your display language will be kept.",
     "yes": "Yes, reset",
     "no": "No",
@@ -164,7 +174,7 @@
     "otherReminder": "Other time",
     "customReminderTitle": "Other time",
     "customReminderLabel": "Reminder time",
-    "customReminderHelp": "Save adds this time to the choices",
+    "customReminderHelp": "Enter 4 digits, for example 0830, then Save",
     "completeTitle": "Medicine added",
     "added": "Medicine saved",
     "remindersSaved": "Reminders: {{times}}",
@@ -219,8 +229,8 @@
     "editDirectionsHelp": "Save returns to medicine details",
     "editRemindersTitle": "Edit reminders",
     "chooseReminders": "Choose reminder times",
-    "customReminderHelp": "Save adds this time to the medicine",
-    "invalidReminders": "Use 24-hour times, for example 08:00, 20:00",
+    "customReminderHelp": "Enter 4 digits, for example 0830, then Save",
+    "invalidReminders": "Enter a valid 24-hour time as 4 digits, for example 0830",
     "archived": "Archived ({{count}})",
     "archivedTitle": "Archived medicines",
     "archivedStatus": "Archived",

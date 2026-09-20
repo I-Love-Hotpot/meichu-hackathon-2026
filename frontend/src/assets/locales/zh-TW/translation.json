@@ -19,6 +19,16 @@
     "noLeftAction": "無左軟鍵",
     "noRightAction": "無右軟鍵"
   },
+  "phoneSetup": {
+    "title": "開始使用",
+    "prompt": "請先輸入手機號碼",
+    "description": "手機號碼會儲存在這台裝置，下次開啟時可直接進入主選單。",
+    "label": "手機號碼",
+    "placeholder": "例如：0912345678",
+    "continue": "繼續",
+    "invalid": "請輸入有效的手機號碼。",
+    "storageError": "無法儲存手機號碼，請確認瀏覽器允許儲存資料。"
+  },
   "home": {
     "title": "主選單",
     "medicineRecognition": "藥品辨識",
@@ -33,7 +43,7 @@
   "demoReset": {
     "title": "重置 Demo 資料",
     "warningTitle": "確定重置全部資料？",
-    "description": "這會清除用藥紀錄、對話歷史、我的藥袋與已儲存的藥品設定。",
+    "description": "這會清除已儲存的手機號碼、用藥紀錄、對話歷史、我的藥袋與藥品設定。",
     "irreversible": "此動作無法復原；顯示語言會保留。",
     "yes": "是，重置",
     "no": "否",
@@ -164,7 +174,7 @@
     "otherReminder": "其他時間",
     "customReminderTitle": "其他時間",
     "customReminderLabel": "提醒時間",
-    "customReminderHelp": "儲存後加入可選時間",
+    "customReminderHelp": "輸入 4 碼時間，例如 0830，再按儲存",
     "completeTitle": "新增完成",
     "added": "藥品已新增",
     "remindersSaved": "提醒：{{times}}",
@@ -219,8 +229,8 @@
     "editDirectionsHelp": "儲存後返回藥品詳情",
     "editRemindersTitle": "修改提醒",
     "chooseReminders": "選擇提醒時間",
-    "customReminderHelp": "儲存後加入此藥品的提醒",
-    "invalidReminders": "請使用 24 小時制，例如 08:00, 20:00",
+    "customReminderHelp": "輸入 4 碼時間，例如 0830，再按儲存",
+    "invalidReminders": "請輸入有效的 24 小時制四碼時間，例如 0830",
     "archived": "已封存（{{count}}）",
     "archivedTitle": "已封存藥品",
     "archivedStatus": "已封存",

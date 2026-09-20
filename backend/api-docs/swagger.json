@@ -617,7 +617,7 @@
         "properties": {
           "to": {
             "type": "string",
-            "example": "+886912345678"
+            "example": "+886965876576"
           }
         },
         "description": "The Twilio trial account always sends the predefined `sms_appointment_reminders` template body; a custom `body` field is not accepted."
@@ -1005,7 +1005,7 @@
           },
           "records": {
             "type": "array",
-            "maxItems": 3,
+            "maxItems": 8,
             "items": {
               "$ref": "#/components/schemas/MedicineRecord"
             }
@@ -1022,13 +1022,8 @@
           "query",
           "source",
           "records",
-          "medicines",
           "total",
-          "recordCount",
-          "inference"
-          ,
-          "medicines",
-          "inference"
+          "recordCount"
         ]
       },
       "MedicineImageRecognitionEvidence": {

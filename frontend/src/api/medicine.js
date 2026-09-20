@@ -39,29 +39,6 @@ const isMedicineRecord = (value) =>
   isObject(value) &&
   medicineRecordFields.every((field) => typeof value[field] === "string");
 
-const databaseTextFields = [
-  "license_number",
-  "chinese_name",
-  "english_name",
-  "shape",
-  "dosage_form",
-  "color",
-  "odor",
-  "score_line",
-  "size",
-  "imprint_1",
-  "imprint_2",
-  "image_url",
-];
-
-const isDatabaseMedicine = (value) =>
-  isObject(value) &&
-  Number.isInteger(value.id) &&
-  databaseTextFields.every(
-    (field) => typeof value[field] === "string" || value[field] === null,
-  ) &&
-  typeof value.created_at === "string";
-
 const isRecognitionEvidence = (value) =>
   isObject(value) &&
   typeof value.text === "string" &&
@@ -189,13 +166,6 @@ export async function searchMedicines(query, { signal } = {}) {
     payload.source !== "42_2.csv" ||
     !Array.isArray(payload.records) ||
     !payload.records.every(isMedicineRecord) ||
-    !Array.isArray(payload.pill_id) ||
-    !payload.pill_id.every((id) => /^[0-9]{6}$/.test(id)) ||
-    !Array.isArray(payload.medicines) ||
-    !payload.medicines.every(isDatabaseMedicine) ||
-    !isObject(payload.inference) ||
-    !Array.isArray(payload.inference.pill_id) ||
-    !payload.inference.pill_id.every((id) => /^[0-9]{6}$/.test(id)) ||
     !Number.isInteger(payload.total) ||
     !Number.isInteger(payload.recordCount)
   ) {
@@ -221,12 +191,15 @@ export async function recognizeMedicineImage(file, { signal } = {}) {
     });
   }
 
-  const payload = await requestJson("/api/medicine/recognize", {
-    method: "POST",
-    headers: { "Content-Type": file.type },
-    body: file,
-    signal,
-  });
+  const payload = await requestJson(
+    "/api/medicine/recognize",
+    {
+      method: "POST",
+      headers: { "Content-Type": file.type },
+      body: file,
+      signal,
+    },
+  );
   if (
     payload?.ok !== true ||
     typeof payload.model !== "string" ||

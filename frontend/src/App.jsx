@@ -1,21 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  recognizeMedicineImage,
-  searchMedicines,
-} from "./api/medicine.js";
+import { recognizeMedicineImage, searchMedicines } from "./api/medicine.js";
 import DeviceShell from "./components/DeviceShell.jsx";
 import MedicineChat from "./components/MedicineChat.jsx";
 import MedicineMatchDeck from "./components/MedicineMatchDeck.jsx";
+import { PHONE_NUMBER_STORAGE_KEY } from "./constants/storage.js";
 import {
   createChatEntityId,
   snapshotChatMedicine,
   useStoredChatSessions,
 } from "./hooks/useStoredChatSessions.js";
-import {
-  getLocalDateKey,
-  useStoredDoseLog,
-} from "./hooks/useStoredDoseLog.js";
+import { getLocalDateKey, useStoredDoseLog } from "./hooks/useStoredDoseLog.js";
 import {
   Decision,
   FeedbackCard,
@@ -84,6 +79,7 @@ const DEMO_DATA_STORAGE_KEYS = [
   "medaboutyou-today-doses",
   "medaboutyou-user-medicines",
   "medaboutyou-medicine-settings",
+  PHONE_NUMBER_STORAGE_KEY,
 ];
 const DEMO_RESET_PRESS_COUNT = 6;
 const DEMO_RESET_MAX_GAP_MS = 2000;
@@ -127,7 +123,10 @@ const extractStrength = (record) =>
     /\b\d+(?:\.\d+)?\s*(?:mcg|mg|g|iu|ml|%)\b/i,
   )?.[0] || "";
 const normalizeMedicineText = (value = "") =>
-  value.normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  value
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, "");
 const recognitionStrengthFor = (record, recognition) => {
   const medications = recognition?.medications || [];
   const names = [record.displayName, record.englishName]
@@ -226,6 +225,7 @@ export default function App() {
   const [editDirections, setEditDirections] = useState("");
   const [editDirectionsEditing, setEditDirectionsEditing] = useState(false);
   const [customReminderTime, setCustomReminderTime] = useState("");
+  const [customReminderDigits, setCustomReminderDigits] = useState("");
   const [reminderReturnScreen, setReminderReturnScreen] = useState(
     SCREEN.REMINDER_SETUP,
   );
@@ -272,6 +272,7 @@ export default function App() {
   const recognitionSourceRef = useRef(null);
   const quantityBufferRef = useRef("");
   const quantityTimerRef = useRef(null);
+  const customReminderBufferRef = useRef("");
   const demoResetPressesRef = useRef(0);
   const demoResetLastPressRef = useRef(0);
   const pendingResetRef = useRef(null);
@@ -301,8 +302,8 @@ export default function App() {
     (medicine.isCatalog
       ? medicine.strength || t("medicines.catalogEntry")
       : medicine.isCustom
-      ? t("medicines.manualEntry")
-      : t(`medicines.${medicine.id}.schedule`));
+        ? t("medicines.manualEntry")
+        : t(`medicines.${medicine.id}.schedule`));
   const medicineUsage = (id) => t(`medicines.${id}.usage`);
   const medicineDirections = (medicine) => {
     if (medicine.isCustom) return medicine.customDirections || "";
@@ -329,9 +330,7 @@ export default function App() {
   const sortedDoseDays = [...doseDays].sort((left, right) =>
     right.date.localeCompare(left.date),
   );
-  const todayDoseDay = sortedDoseDays.find(
-    (day) => day.date === todayDateKey,
-  );
+  const todayDoseDay = sortedDoseDays.find((day) => day.date === todayDateKey);
   const doses = todayDoseDay?.doses || defaultDoseSchedule;
   const selectedDoseDay =
     sortedDoseDays.find((day) => day.date === selectedDoseDate) ||
@@ -376,7 +375,12 @@ export default function App() {
       done,
       total,
       relative: relativeDoseDate(day.date),
-      state: total > 0 && done === total ? "success" : done > 0 ? "focus" : "default",
+      state:
+        total > 0 && done === total
+          ? "success"
+          : done > 0
+            ? "focus"
+            : "default",
     };
   });
   const reminderOptions = [
@@ -540,14 +544,11 @@ export default function App() {
     if (!screenContent) return;
     const candidates = [screenContent, ...screenContent.querySelectorAll("*")];
     const scroller =
-      candidates.find(
-        (candidate) => {
-          if (candidate.scrollHeight <= candidate.clientHeight + 1)
-            return false;
-          const overflowY = window.getComputedStyle(candidate).overflowY;
-          return ["auto", "scroll", "overlay"].includes(overflowY);
-        },
-      ) || screenContent;
+      candidates.find((candidate) => {
+        if (candidate.scrollHeight <= candidate.clientHeight + 1) return false;
+        const overflowY = window.getComputedStyle(candidate).overflowY;
+        return ["auto", "scroll", "overlay"].includes(overflowY);
+      }) || screenContent;
     const distance = Math.max(32, Math.round(scroller.clientHeight * 0.7));
     scroller.scrollBy({ top: direction * distance, behavior: "smooth" });
   };
@@ -624,8 +625,7 @@ export default function App() {
         updatedAt: now,
         locale: currentLanguage,
         title:
-          existing?.title ||
-          chatTitleFor(boundedMessages, t("chat.untitled")),
+          existing?.title || chatTitleFor(boundedMessages, t("chat.untitled")),
         medicine: medicine || existing?.medicine || null,
         messages: boundedMessages,
         disclaimer: disclaimer || existing?.disclaimer || "",
@@ -652,9 +652,7 @@ export default function App() {
     const needsPackageText =
       session.requiresPackageText && !session.medicine?.recordId;
     navigate(
-      needsPackageText
-        ? SCREEN.MEDICINE_CHAT_CONTEXT
-        : SCREEN.MEDICINE_CHAT,
+      needsPackageText ? SCREEN.MEDICINE_CHAT_CONTEXT : SCREEN.MEDICINE_CHAT,
       fromFocus,
       { chatId: session.id },
     );
@@ -773,9 +771,7 @@ export default function App() {
   const recognitionFailureMessage = (error, sourceKind) => {
     if (error.status === 400)
       return t(
-        sourceKind === "text"
-          ? "add.searchValidation"
-          : "add.invalidImage",
+        sourceKind === "text" ? "add.searchValidation" : "add.invalidImage",
       );
     if (error.status === 413) return t("add.imageTooLarge");
     if (error.status === 415) return t("add.unsupportedImage");
@@ -866,9 +862,7 @@ export default function App() {
       if (localDateFromKey(entry.doseDate)) {
         setSelectedDoseDate(entry.doseDate);
       }
-      setSelectedDoseId(
-        typeof entry.doseId === "string" ? entry.doseId : null,
-      );
+      setSelectedDoseId(typeof entry.doseId === "string" ? entry.doseId : null);
       const storedChat =
         CHAT_SESSION_SCREENS.has(entry.screen) &&
         typeof entry.chatId === "string"
@@ -981,10 +975,7 @@ export default function App() {
       setFocus(
         nextScreen === event.state.screen && Number.isInteger(event.state.focus)
           ? event.state.focus
-          : getDefaultFocusForScreen(
-              nextScreen,
-              currentLanguageRef.current,
-            ),
+          : getDefaultFocusForScreen(nextScreen, currentLanguageRef.current),
       );
     };
 
@@ -1082,6 +1073,25 @@ export default function App() {
     quantityTimerRef.current = window.setTimeout(() => {
       quantityBufferRef.current = "";
     }, 1200);
+  };
+
+  const enterCustomReminderDigit = (key) => {
+    const current = customReminderBufferRef.current;
+    const next = `${current.length >= 4 ? "" : current}${key}`;
+    customReminderBufferRef.current = next;
+    setCustomReminderDigits(next);
+    setCustomReminderTime("");
+    setReminderInputError(false);
+
+    if (next.length === 4) {
+      const hours = Number(next.slice(0, 2));
+      const minutes = Number(next.slice(2));
+      if (hours <= 23 && minutes <= 59) {
+        setCustomReminderTime(`${next.slice(0, 2)}:${next.slice(2)}`);
+      } else {
+        setReminderInputError(true);
+      }
+    }
   };
 
   const scrollMatchCard = (direction) => {
@@ -1243,7 +1253,9 @@ export default function App() {
   };
 
   const openCustomReminder = (returnScreen, fromFocus = focus) => {
+    customReminderBufferRef.current = "";
     setCustomReminderTime("");
+    setCustomReminderDigits("");
     setReminderInputError(false);
     setReminderReturnScreen(returnScreen);
     navigate(SCREEN.CUSTOM_REMINDER, fromFocus);
@@ -1376,8 +1388,7 @@ export default function App() {
         item.id === selectedDoseRecord.id
           ? {
               ...item,
-              medicineName:
-                item.medicineName || medicineName(item.medicineId),
+              medicineName: item.medicineName || medicineName(item.medicineId),
               amount: quantity,
             }
           : item,
@@ -1400,9 +1411,7 @@ export default function App() {
     );
     const keepEmptyToday = selectedDoseDay.date === todayDateKey;
     setDoseDays((days) => {
-      const otherDays = days.filter(
-        (day) => day.date !== selectedDoseDay.date,
-      );
+      const otherDays = days.filter((day) => day.date !== selectedDoseDay.date);
       if (!remainingDoses.length && !keepEmptyToday) return otherDays;
       return [
         {
@@ -1417,9 +1426,7 @@ export default function App() {
 
     const returnToHistory = !remainingDoses.length && !keepEmptyToday;
     const historySteps = returnToHistory ? -3 : -2;
-    if (
-      Number(window.history.state?.depth || 0) >= Math.abs(historySteps)
-    ) {
+    if (Number(window.history.state?.depth || 0) >= Math.abs(historySteps)) {
       window.history.go(historySteps);
       return;
     }
@@ -1669,22 +1676,18 @@ export default function App() {
           const candidate = localizedCandidates[focus];
           if (candidate) {
             const existingMedicine = userMedicines.find(
-              (medicine) =>
-                medicine.catalogRecordId === candidate.recordId,
+              (medicine) => medicine.catalogRecordId === candidate.recordId,
             );
             const medicine = {
               ...existingMedicine,
-              id:
-                existingMedicine?.id ||
-                `catalog-${candidate.recordId}`,
+              id: existingMedicine?.id || `catalog-${candidate.recordId}`,
               isCustom: true,
               isCatalog: true,
               catalogRecordId: candidate.recordId,
               recordId: candidate.recordId,
               sourceRecord: candidate.sourceRecord,
               customName: existingMedicine?.customName || candidate.name,
-              strength:
-                existingMedicine?.strength || candidate.strength || "",
+              strength: existingMedicine?.strength || candidate.strength || "",
               customDirections:
                 existingMedicine?.customDirections || manualDirections.trim(),
               reminders: existingMedicine?.reminders || [],
@@ -1708,9 +1711,7 @@ export default function App() {
             ? t("common.confirm")
             : t("common.retry"),
           right: t("common.back"),
-          onLeft: localizedCandidates.length
-            ? undefined
-            : retryRecognition,
+          onLeft: localizedCandidates.length ? undefined : retryRecognition,
           onEnter: activateMatch,
           onNumber: (number) => {
             if (number >= 1 && number <= localizedCandidates.length + 1)
@@ -1820,7 +1821,9 @@ export default function App() {
           ),
         };
 
-      case SCREEN.CUSTOM_REMINDER:
+      case SCREEN.CUSTOM_REMINDER: {
+        const paddedDigits = customReminderDigits.padEnd(4, "_");
+        const displayedTime = `${paddedDigits.slice(0, 2)}:${paddedDigits.slice(2)}`;
         return {
           title: t("add.customReminderTitle"),
           count: 1,
@@ -1835,21 +1838,25 @@ export default function App() {
                 saveCustomReminder();
               }}
             >
-              <label htmlFor="custom-reminder-time">
-                {t("add.customReminderLabel")}
-              </label>
-              <input
-                id="custom-reminder-time"
-                type="time"
-                value={customReminderTime}
-                onChange={(event) => {
-                  setCustomReminderTime(event.target.value);
-                  setReminderInputError(false);
-                }}
-                aria-invalid={reminderInputError}
-                required
-                autoFocus
-              />
+              <div
+                className="focusable-field keypad-time-field is-selected"
+                role="group"
+                aria-labelledby="custom-reminder-time-label"
+              >
+                <span
+                  id="custom-reminder-time-label"
+                  className="keypad-time-label"
+                >
+                  {t("add.customReminderLabel")}
+                </span>
+                <output
+                  className="keypad-time-output"
+                  aria-live="polite"
+                  aria-invalid={reminderInputError}
+                >
+                  {displayedTime}
+                </output>
+              </div>
               <p
                 className={`helper${reminderInputError ? " input-error" : ""}`}
                 aria-live="polite"
@@ -1865,6 +1872,7 @@ export default function App() {
             </form>
           ),
         };
+      }
 
       case SCREEN.ADD_COMPLETE:
         return {
@@ -2318,8 +2326,7 @@ export default function App() {
           right: t("common.back"),
           onLeft: saveDirections,
           onEnter: () => setEditDirectionsEditing((editing) => !editing),
-          onInputKey: () =>
-            setEditDirectionsEditing((editing) => !editing),
+          onInputKey: () => setEditDirectionsEditing((editing) => !editing),
           content: (
             <form
               className="manual-form"
@@ -2678,10 +2685,7 @@ export default function App() {
         return {
           title: t("chat.history"),
           count: chatSessions.length + 1,
-          left:
-            focus === clearIndex
-              ? t("common.confirm")
-              : t("common.open"),
+          left: focus === clearIndex ? t("common.confirm") : t("common.open"),
           right: t("common.back"),
           onEnter: () => activateHistoryItem(),
           onNumber: (number) => {
@@ -3108,9 +3112,7 @@ export default function App() {
                 onSelect={setDecision}
                 ariaLabel={t("demoReset.choiceLabel")}
               />
-              <p className="helper centered">
-                {t("demoReset.irreversible")}
-              </p>
+              <p className="helper centered">{t("demoReset.irreversible")}</p>
             </div>
           ),
         };
@@ -3175,15 +3177,27 @@ export default function App() {
   const onRight = goBack;
 
   const handleKeyDown = (event) => {
+    const isRightSoftKey =
+      event.code === "ShiftRight" || event.key === "SoftRight";
     const isTextField =
       (event.target instanceof HTMLInputElement &&
         event.target.type !== "file") ||
       event.target instanceof HTMLTextAreaElement;
-    if (isTextField && event.key !== "Escape" && event.key !== "SoftLeft")
+    if (
+      isTextField &&
+      event.key !== "Escape" &&
+      event.key !== "SoftLeft" &&
+      !isRightSoftKey
+    )
       return;
 
-    const isDemoResetKey =
-      event.key === "0" || event.code === "Numpad0";
+    if (isRightSoftKey) {
+      event.preventDefault();
+      onRight?.();
+      return;
+    }
+
+    const isDemoResetKey = event.key === "0" || event.code === "Numpad0";
     if (screen === SCREEN.HOME && isDemoResetKey) {
       event.preventDefault();
       if (!event.repeat) registerDemoResetPress();
@@ -3192,6 +3206,12 @@ export default function App() {
     if (screen === SCREEN.HOME && !event.repeat) {
       demoResetPressesRef.current = 0;
       demoResetLastPressRef.current = 0;
+    }
+
+    if (screen === SCREEN.CUSTOM_REMINDER && /^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      if (!event.repeat) enterCustomReminderDigit(event.key);
+      return;
     }
 
     if (/^[0oO]$/.test(event.key) && screenConfig.onInputKey) {

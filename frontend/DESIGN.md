@@ -39,12 +39,13 @@ Typography uses `Noto Sans TC`, then platform Chinese sans-serif fallbacks. QVGA
 - `ArrowLeft` / `ArrowRight`: choose a binary option or adjust a quantity.
 - `Enter`: activate the focused item or confirm the current screen.
 - `Escape` / `SoftLeft`: trigger the left soft-key action.
+- Right `Shift` / `SoftRight`: trigger the right soft-key back action.
 - Home numeric shortcuts: `1`–`5` open the matching function; `9` opens the reminder demo.
 - Numbered menus accept `1`–`9` for direct selection without moving focus first.
 - Quantity controls accept direct numeric entry. Press `*` for the decimal point, so `1`, `*`, `5` enters `1.5` pills.
 - Pointer clicks are supported for desktop development, but all primary flows work from the keypad.
 
-The physical right soft key is not handled as a keyboard event. Every internal screen transition creates a native browser history entry with `history.pushState()`. RSK therefore invokes the platform's normal back action and the app restores the previous screen from `popstate`; only the root entry may be closed by the platform. Completed flows collapse their intermediate history before showing feedback, so RSK returns to Home instead of reopening the completed flow. The rendered right soft-key button calls the same `history.back()` path for desktop testing.
+Every internal screen transition creates a native browser history entry with `history.pushState()`. RSK, right `Shift`, and `SoftRight` therefore invoke the same back action and the app restores the previous screen from `popstate`; only the root entry may be closed by the platform. Completed flows collapse their intermediate history before showing feedback, so RSK returns to Home instead of reopening the completed flow. The rendered right soft-key button calls the same `history.back()` path for desktop testing.
 
 Destructive and emergency information uses both text and color; color is never the only cue.
 

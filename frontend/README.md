@@ -46,12 +46,13 @@ npm run build
 - `↑` / `↓` on a match card: scroll card details
 - `Enter`: confirm
 - `Escape`: left soft key
+- Right `Shift`: right soft key / back
 - `1`–`5`: home feature shortcuts
 - `1`–`9`: select numbered items in supported lists
 - Number keys: enter quantity directly; `*` enters a decimal point
 - `9`: reminder demo
 
-The physical right soft key uses native browser history rather than a keyboard listener. Internal transitions call `history.pushState()`, so RSK returns to the preceding app screen instead of closing the app.
+Right `Shift` (or the `SoftRight` key reported by a device) invokes the same browser-history back action as RSK. Internal transitions call `history.pushState()`, so RSK returns to the preceding app screen instead of closing the app.
 
 The photo flow uses the device's native camera or image picker via `<input type="file" accept="image/*" capture="environment">`; the selected image is not previewed in the app.
 
