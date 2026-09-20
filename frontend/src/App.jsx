@@ -4,6 +4,7 @@ import { recognizeMedicineImage, searchMedicines } from "./api/medicine.js";
 import DeviceShell from "./components/DeviceShell.jsx";
 import MedicineChat from "./components/MedicineChat.jsx";
 import MedicineMatchDeck from "./components/MedicineMatchDeck.jsx";
+import { PHONE_NUMBER_STORAGE_KEY } from "./constants/storage.js";
 import {
   createChatEntityId,
   snapshotChatMedicine,
@@ -78,6 +79,7 @@ const DEMO_DATA_STORAGE_KEYS = [
   "medaboutyou-today-doses",
   "medaboutyou-user-medicines",
   "medaboutyou-medicine-settings",
+  PHONE_NUMBER_STORAGE_KEY,
 ];
 const DEMO_RESET_PRESS_COUNT = 6;
 const DEMO_RESET_MAX_GAP_MS = 2000;

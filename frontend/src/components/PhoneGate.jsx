@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PHONE_NUMBER_STORAGE_KEY } from "../constants/storage.js";
 import { FocusableField } from "./Controls.jsx";
 import DeviceShell from "./DeviceShell.jsx";
 import "./PhoneGate.css";
-
-export const PHONE_NUMBER_STORAGE_KEY = "medaboutyou-phone-number";
 
 const readStoredPhoneNumber = () => {
   try {
@@ -38,6 +37,7 @@ export default function PhoneGate({ children }) {
   if (isRegistered) return children;
 
   const toggleInputMode = () => setIsEditing((editing) => !editing);
+  const exitApp = () => window.history.back();
 
   const savePhoneNumber = () => {
     const normalizedPhoneNumber = normalizePhoneNumber(phoneNumber);
@@ -60,6 +60,13 @@ export default function PhoneGate({ children }) {
 
   const handleKeyDown = (event) => {
     if (event.nativeEvent?.isComposing || event.keyCode === 229) return;
+    const isRightSoftKey =
+      event.code === "ShiftRight" || event.key === "SoftRight";
+    if (isRightSoftKey) {
+      event.preventDefault();
+      exitApp();
+      return;
+    }
     if (event.key === "Escape" || event.key === "SoftLeft") {
       event.preventDefault();
       savePhoneNumber();
@@ -78,7 +85,7 @@ export default function PhoneGate({ children }) {
     <DeviceShell
       title={t("phoneSetup.title")}
       left={t("phoneSetup.continue")}
-      right=""
+      right={t("common.exit")}
       onLeft={savePhoneNumber}
       onCenter={toggleInputMode}
       onCenterPointerDown={(event) => {
@@ -86,7 +93,7 @@ export default function PhoneGate({ children }) {
         if (isEditing) event.preventDefault();
       }}
       centerLabel={t(isEditing ? "common.finish" : "common.select")}
-      noRightLabel={t("common.noRightAction")}
+      onRight={exitApp}
       onKeyDown={handleKeyDown}
       screenRef={shellRef}
     >
