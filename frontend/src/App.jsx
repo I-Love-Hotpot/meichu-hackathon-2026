@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  recognizeMedicineImage,
-  searchMedicines,
-} from "./api/medicine.js";
+import { recognizeMedicineImage, searchMedicines } from "./api/medicine.js";
 import DeviceShell from "./components/DeviceShell.jsx";
 import MedicineChat from "./components/MedicineChat.jsx";
 import MedicineMatchDeck from "./components/MedicineMatchDeck.jsx";
@@ -12,10 +9,7 @@ import {
   snapshotChatMedicine,
   useStoredChatSessions,
 } from "./hooks/useStoredChatSessions.js";
-import {
-  getLocalDateKey,
-  useStoredDoseLog,
-} from "./hooks/useStoredDoseLog.js";
+import { getLocalDateKey, useStoredDoseLog } from "./hooks/useStoredDoseLog.js";
 import {
   Decision,
   FeedbackCard,
@@ -127,7 +121,10 @@ const extractStrength = (record) =>
     /\b\d+(?:\.\d+)?\s*(?:mcg|mg|g|iu|ml|%)\b/i,
   )?.[0] || "";
 const normalizeMedicineText = (value = "") =>
-  value.normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  value
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, "");
 const recognitionStrengthFor = (record, recognition) => {
   const medications = recognition?.medications || [];
   const names = [record.displayName, record.englishName]
@@ -303,8 +300,8 @@ export default function App() {
     (medicine.isCatalog
       ? medicine.strength || t("medicines.catalogEntry")
       : medicine.isCustom
-      ? t("medicines.manualEntry")
-      : t(`medicines.${medicine.id}.schedule`));
+        ? t("medicines.manualEntry")
+        : t(`medicines.${medicine.id}.schedule`));
   const medicineUsage = (id) => t(`medicines.${id}.usage`);
   const medicineDirections = (medicine) => {
     if (medicine.isCustom) return medicine.customDirections || "";
@@ -331,9 +328,7 @@ export default function App() {
   const sortedDoseDays = [...doseDays].sort((left, right) =>
     right.date.localeCompare(left.date),
   );
-  const todayDoseDay = sortedDoseDays.find(
-    (day) => day.date === todayDateKey,
-  );
+  const todayDoseDay = sortedDoseDays.find((day) => day.date === todayDateKey);
   const doses = todayDoseDay?.doses || defaultDoseSchedule;
   const selectedDoseDay =
     sortedDoseDays.find((day) => day.date === selectedDoseDate) ||
@@ -378,7 +373,12 @@ export default function App() {
       done,
       total,
       relative: relativeDoseDate(day.date),
-      state: total > 0 && done === total ? "success" : done > 0 ? "focus" : "default",
+      state:
+        total > 0 && done === total
+          ? "success"
+          : done > 0
+            ? "focus"
+            : "default",
     };
   });
   const reminderOptions = [
@@ -542,14 +542,11 @@ export default function App() {
     if (!screenContent) return;
     const candidates = [screenContent, ...screenContent.querySelectorAll("*")];
     const scroller =
-      candidates.find(
-        (candidate) => {
-          if (candidate.scrollHeight <= candidate.clientHeight + 1)
-            return false;
-          const overflowY = window.getComputedStyle(candidate).overflowY;
-          return ["auto", "scroll", "overlay"].includes(overflowY);
-        },
-      ) || screenContent;
+      candidates.find((candidate) => {
+        if (candidate.scrollHeight <= candidate.clientHeight + 1) return false;
+        const overflowY = window.getComputedStyle(candidate).overflowY;
+        return ["auto", "scroll", "overlay"].includes(overflowY);
+      }) || screenContent;
     const distance = Math.max(32, Math.round(scroller.clientHeight * 0.7));
     scroller.scrollBy({ top: direction * distance, behavior: "smooth" });
   };
@@ -626,8 +623,7 @@ export default function App() {
         updatedAt: now,
         locale: currentLanguage,
         title:
-          existing?.title ||
-          chatTitleFor(boundedMessages, t("chat.untitled")),
+          existing?.title || chatTitleFor(boundedMessages, t("chat.untitled")),
         medicine: medicine || existing?.medicine || null,
         messages: boundedMessages,
         disclaimer: disclaimer || existing?.disclaimer || "",
@@ -654,9 +650,7 @@ export default function App() {
     const needsPackageText =
       session.requiresPackageText && !session.medicine?.recordId;
     navigate(
-      needsPackageText
-        ? SCREEN.MEDICINE_CHAT_CONTEXT
-        : SCREEN.MEDICINE_CHAT,
+      needsPackageText ? SCREEN.MEDICINE_CHAT_CONTEXT : SCREEN.MEDICINE_CHAT,
       fromFocus,
       { chatId: session.id },
     );
@@ -775,9 +769,7 @@ export default function App() {
   const recognitionFailureMessage = (error, sourceKind) => {
     if (error.status === 400)
       return t(
-        sourceKind === "text"
-          ? "add.searchValidation"
-          : "add.invalidImage",
+        sourceKind === "text" ? "add.searchValidation" : "add.invalidImage",
       );
     if (error.status === 413) return t("add.imageTooLarge");
     if (error.status === 415) return t("add.unsupportedImage");
@@ -868,9 +860,7 @@ export default function App() {
       if (localDateFromKey(entry.doseDate)) {
         setSelectedDoseDate(entry.doseDate);
       }
-      setSelectedDoseId(
-        typeof entry.doseId === "string" ? entry.doseId : null,
-      );
+      setSelectedDoseId(typeof entry.doseId === "string" ? entry.doseId : null);
       const storedChat =
         CHAT_SESSION_SCREENS.has(entry.screen) &&
         typeof entry.chatId === "string"
@@ -983,10 +973,7 @@ export default function App() {
       setFocus(
         nextScreen === event.state.screen && Number.isInteger(event.state.focus)
           ? event.state.focus
-          : getDefaultFocusForScreen(
-              nextScreen,
-              currentLanguageRef.current,
-            ),
+          : getDefaultFocusForScreen(nextScreen, currentLanguageRef.current),
       );
     };
 
@@ -1399,8 +1386,7 @@ export default function App() {
         item.id === selectedDoseRecord.id
           ? {
               ...item,
-              medicineName:
-                item.medicineName || medicineName(item.medicineId),
+              medicineName: item.medicineName || medicineName(item.medicineId),
               amount: quantity,
             }
           : item,
@@ -1423,9 +1409,7 @@ export default function App() {
     );
     const keepEmptyToday = selectedDoseDay.date === todayDateKey;
     setDoseDays((days) => {
-      const otherDays = days.filter(
-        (day) => day.date !== selectedDoseDay.date,
-      );
+      const otherDays = days.filter((day) => day.date !== selectedDoseDay.date);
       if (!remainingDoses.length && !keepEmptyToday) return otherDays;
       return [
         {
@@ -1440,9 +1424,7 @@ export default function App() {
 
     const returnToHistory = !remainingDoses.length && !keepEmptyToday;
     const historySteps = returnToHistory ? -3 : -2;
-    if (
-      Number(window.history.state?.depth || 0) >= Math.abs(historySteps)
-    ) {
+    if (Number(window.history.state?.depth || 0) >= Math.abs(historySteps)) {
       window.history.go(historySteps);
       return;
     }
@@ -1692,22 +1674,18 @@ export default function App() {
           const candidate = localizedCandidates[focus];
           if (candidate) {
             const existingMedicine = userMedicines.find(
-              (medicine) =>
-                medicine.catalogRecordId === candidate.recordId,
+              (medicine) => medicine.catalogRecordId === candidate.recordId,
             );
             const medicine = {
               ...existingMedicine,
-              id:
-                existingMedicine?.id ||
-                `catalog-${candidate.recordId}`,
+              id: existingMedicine?.id || `catalog-${candidate.recordId}`,
               isCustom: true,
               isCatalog: true,
               catalogRecordId: candidate.recordId,
               recordId: candidate.recordId,
               sourceRecord: candidate.sourceRecord,
               customName: existingMedicine?.customName || candidate.name,
-              strength:
-                existingMedicine?.strength || candidate.strength || "",
+              strength: existingMedicine?.strength || candidate.strength || "",
               customDirections:
                 existingMedicine?.customDirections || manualDirections.trim(),
               reminders: existingMedicine?.reminders || [],
@@ -1731,9 +1709,7 @@ export default function App() {
             ? t("common.confirm")
             : t("common.retry"),
           right: t("common.back"),
-          onLeft: localizedCandidates.length
-            ? undefined
-            : retryRecognition,
+          onLeft: localizedCandidates.length ? undefined : retryRecognition,
           onEnter: activateMatch,
           onNumber: (number) => {
             if (number >= 1 && number <= localizedCandidates.length + 1)
@@ -2348,8 +2324,7 @@ export default function App() {
           right: t("common.back"),
           onLeft: saveDirections,
           onEnter: () => setEditDirectionsEditing((editing) => !editing),
-          onInputKey: () =>
-            setEditDirectionsEditing((editing) => !editing),
+          onInputKey: () => setEditDirectionsEditing((editing) => !editing),
           content: (
             <form
               className="manual-form"
@@ -2708,10 +2683,7 @@ export default function App() {
         return {
           title: t("chat.history"),
           count: chatSessions.length + 1,
-          left:
-            focus === clearIndex
-              ? t("common.confirm")
-              : t("common.open"),
+          left: focus === clearIndex ? t("common.confirm") : t("common.open"),
           right: t("common.back"),
           onEnter: () => activateHistoryItem(),
           onNumber: (number) => {
@@ -3138,9 +3110,7 @@ export default function App() {
                 onSelect={setDecision}
                 ariaLabel={t("demoReset.choiceLabel")}
               />
-              <p className="helper centered">
-                {t("demoReset.irreversible")}
-              </p>
+              <p className="helper centered">{t("demoReset.irreversible")}</p>
             </div>
           ),
         };
@@ -3205,15 +3175,27 @@ export default function App() {
   const onRight = goBack;
 
   const handleKeyDown = (event) => {
+    const isRightSoftKey =
+      event.code === "ShiftRight" || event.key === "SoftRight";
     const isTextField =
       (event.target instanceof HTMLInputElement &&
         event.target.type !== "file") ||
       event.target instanceof HTMLTextAreaElement;
-    if (isTextField && event.key !== "Escape" && event.key !== "SoftLeft")
+    if (
+      isTextField &&
+      event.key !== "Escape" &&
+      event.key !== "SoftLeft" &&
+      !isRightSoftKey
+    )
       return;
 
-    const isDemoResetKey =
-      event.key === "0" || event.code === "Numpad0";
+    if (isRightSoftKey) {
+      event.preventDefault();
+      onRight?.();
+      return;
+    }
+
+    const isDemoResetKey = event.key === "0" || event.code === "Numpad0";
     if (screen === SCREEN.HOME && isDemoResetKey) {
       event.preventDefault();
       if (!event.repeat) registerDemoResetPress();
