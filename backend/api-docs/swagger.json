@@ -357,7 +357,7 @@
         ],
         "summary": "Recognize medicine candidates with the local model",
         "operationId": "recognizeMedicineImage",
-        "description": "Accepts one raw JPEG, PNG, or WebP image of at most 5 MiB. The backend forwards it to the separate pill-inference container over the private Docker network. That service returns only a pill_id array containing up to three six-digit numeric classifier IDs. The backend uses each ID to query MariaDB and returns every column from each matching medicines row in medicines.",
+        "description": "Accepts one raw JPEG, PNG, or WebP image of at most 5 MiB. The backend forwards it to the separate pill-inference container over the private Docker network. That service returns up to three six-digit numeric classifier IDs with confidence scores. The backend uses each ID to query MariaDB and adds the corresponding confidence to each frontend record.",
         "requestBody": {
           "required": true,
           "content": {
@@ -916,6 +916,13 @@
           "imageUrl": {
             "type": "string",
             "description": "Source appearance-image URL. The image is not read by the assistant; empty means not provided."
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "nullable": true,
+            "description": "Classifier confidence for image-recognition records. Null or omitted for records from other endpoints or legacy inference responses."
           }
         },
         "required": [
@@ -1171,22 +1178,61 @@
             "description": "Complete MariaDB rows matching the numeric classifier IDs."
           },
           "inference": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "pill_id"
-            ],
-            "properties": {
-              "pill_id": {
-                "type": "array",
-                "maxItems": 3,
-                "items": {
-                  "type": "string",
-                  "pattern": "^[0-9]{6}$"
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "predictions"
+                ],
+                "properties": {
+                  "predictions": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "pill_id",
+                        "score"
+                      ],
+                      "properties": {
+                        "pill_id": {
+                          "type": "string",
+                          "pattern": "^[0-9]{6}$"
+                        },
+                        "drug_name": {
+                          "type": "string"
+                        },
+                        "score": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "pill_id"
+                ],
+                "properties": {
+                  "pill_id": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[0-9]{6}$"
+                    }
+                  }
                 }
               }
-            },
-            "description": "Exact JSON returned by the separate inference container."
+            ],
+            "description": "Exact JSON returned by the separate inference container; pill_id is retained for compatibility with legacy inference deployments."
           }
         }
       },

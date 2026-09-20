@@ -52,10 +52,11 @@ docker-compose.inference.yaml standalone PyTorch inference service
 1. The client posts raw JPEG, PNG, or WebP bytes to
    `POST /api/medicine/recognize` (maximum 5 MiB).
 2. `backend` forwards the bytes to `http://chia.dstw.dev/recognize`.
-3. The hosted inference service returns only up to three six-digit numeric IDs:
+3. The hosted inference service returns up to three six-digit numeric IDs with
+   classifier confidence scores:
 
    ```json
-   { "pill_id": ["018251"] }
+   { "predictions": [{ "pill_id": "018251", "drug_name": "Example medicine", "score": 0.923456 }] }
    ```
 
 4. `backend` looks up every ID in MariaDB and returns the complete matching
