@@ -1005,7 +1005,7 @@
           },
           "records": {
             "type": "array",
-            "maxItems": 3,
+            "maxItems": 8,
             "items": {
               "$ref": "#/components/schemas/MedicineRecord"
             }
@@ -1022,13 +1022,8 @@
           "query",
           "source",
           "records",
-          "medicines",
           "total",
-          "recordCount",
-          "inference"
-          ,
-          "medicines",
-          "inference"
+          "recordCount"
         ]
       },
       "MedicineImageRecognitionEvidence": {
