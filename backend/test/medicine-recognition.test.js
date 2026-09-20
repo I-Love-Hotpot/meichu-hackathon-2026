@@ -62,6 +62,7 @@ test("numeric inference pill IDs return complete MariaDB rows and frontend recor
   assert.deepEqual(result.medicines, [medicine]);
   assert.equal(result.records[0].displayName, medicine.english_name);
   assert.equal(result.records[0].licenseNumber, medicine.license_number);
+  assert.equal(result.records[0].confidence, null);
   assert.deepEqual(result.inference, { pill_id: [pillId] });
 });
 
@@ -82,6 +83,10 @@ test("no detection succeeds with empty candidate arrays", async () => {
 test("hosted inference predictions are converted to pill IDs", async () => {
   const secondPillId = "024614";
   const requestedIds = [];
+  const predictions = [
+    { pill_id: pillId, drug_name: medicine.chinese_name, score: 0.34 },
+    { pill_id: secondPillId, drug_name: "PANADOL COLD", score: 0.12 },
+  ];
   const result = await recognizeMedicineImage(
     { image: jpeg, mediaType: "image/jpeg" },
     {
@@ -90,12 +95,7 @@ test("hosted inference predictions are converted to pill IDs", async () => {
         assert.equal(url, "http://chia.dstw.dev/recognize");
         assert.equal(options.headers["Content-Type"], "image/jpeg");
         assert.deepEqual(options.body, jpeg);
-        return new Response(JSON.stringify({
-          predictions: [
-            { pill_id: pillId, drug_name: medicine.chinese_name, score: 0.34 },
-            { pill_id: secondPillId, drug_name: "PANADOL COLD", score: 0.12 },
-          ],
-        }));
+        return new Response(JSON.stringify({ predictions }));
       },
       repository: {
         findAllByPillId: async (id) => {
@@ -108,8 +108,9 @@ test("hosted inference predictions are converted to pill IDs", async () => {
 
   assert.deepEqual(requestedIds, [pillId, secondPillId]);
   assert.deepEqual(result.pill_id, [pillId, secondPillId]);
-  assert.deepEqual(result.inference, { pill_id: [pillId, secondPillId] });
+  assert.deepEqual(result.inference, { predictions });
   assert.deepEqual(result.medicines, [medicine]);
+  assert.equal(result.records[0].confidence, 0.34);
 });
 
 test("recognition validates image type, bytes, and size", async () => {

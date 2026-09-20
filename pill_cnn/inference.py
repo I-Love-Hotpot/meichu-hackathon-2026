@@ -29,7 +29,7 @@ def get_pipeline(config_path=DEFAULT_CONFIG, weights=None):
 
 
 def predict(image_path, weights=None, config_path=DEFAULT_CONFIG):
-    """Return up to three six-digit classifier IDs."""
+    """Return up to three scored six-digit classifier predictions."""
     return get_pipeline(config_path=config_path, weights=weights).predict(image_path)
 
 
@@ -53,7 +53,7 @@ def _batch_predict(pipeline, image_dir, output_dir, limit=None):
             result = pipeline.predict(image_path)
         except Exception as error:
             print(f"inference error for {image_path}: {error}", file=sys.stderr)
-            result = {"pill_id": []}
+            result = {"predictions": []}
         output_path = output_dir / image_path.stem / "prediction.json"
         _write_json(output_path, result)
         written.append(str(output_path))

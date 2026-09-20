@@ -132,13 +132,15 @@ curl http://localhost:3001/api/medicine/recognize \
 
 The hosted inference service loads `pill_detector.pt` and
 `pill_classifier.pt` once at startup, detects and crops the pill with YOLO,
-classifies it with MobileNetV3, and returns only
-`{ "pill_id": [...] }`, containing up to three six-digit numeric IDs. The Node
+classifies it with MobileNetV3, and returns
+`{ "predictions": [...] }`, containing up to three six-digit numeric IDs and
+their confidence scores. The Node
 backend forwards the image over the private Docker network and looks up each ID
 against the numeric portion of `license_number`. The response contains
 frontend-compatible `records`, complete `SELECT *` MariaDB rows in `medicines`,
-and the original numeric IDs in `pill_id` and `inference`. A successful request
-may return empty arrays when no pill or candidate is found.
+the original numeric IDs in `pill_id`, and the scored model output in
+`inference`. A successful request may return empty arrays when no pill or
+candidate is found.
 
 The inference container writes the upload to a private temporary directory only
 for the duration of inference and removes it afterward. The image is not sent to Gemini,

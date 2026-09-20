@@ -41,6 +41,15 @@ const isMedicineRecord = (value) =>
   isObject(value) &&
   medicineRecordFields.every((field) => typeof value[field] === "string");
 
+const isRecognitionRecord = (value) =>
+  isMedicineRecord(value) &&
+  (value.confidence === undefined ||
+    value.confidence === null ||
+    (typeof value.confidence === "number" &&
+      Number.isFinite(value.confidence) &&
+      value.confidence >= 0 &&
+      value.confidence <= 1));
+
 const isRecognitionEvidence = (value) =>
   isObject(value) &&
   typeof value.text === "string" &&
@@ -209,7 +218,7 @@ export async function recognizeMedicineImage(file, { signal } = {}) {
     !isRecognitionEvidence(payload.recognition) ||
     !["appearance", "none"].includes(payload.matchStrategy) ||
     !Array.isArray(payload.records) ||
-    !payload.records.every(isMedicineRecord) ||
+    !payload.records.every(isRecognitionRecord) ||
     !Number.isInteger(payload.total) ||
     !Number.isInteger(payload.recordCount) ||
     payload.source !== "MariaDB"

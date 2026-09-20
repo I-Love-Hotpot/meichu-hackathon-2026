@@ -12,14 +12,18 @@ the Node backend is responsible for loading the matching MariaDB rows.
 
 ```json
 {
-  "pill_id": [
-    "018251",
-    "018172"
+  "predictions": [
+    {
+      "pill_id": "018251",
+      "drug_name": "Example medicine",
+      "score": 0.923456
+    }
   ]
 }
 ```
 
-The response has exactly one field and at most three IDs. `GET /health`
+The response has exactly one field and at most three predictions. `score` is
+the classifier confidence from 0 to 1. `GET /health`
 returns `{ "ok": true }` after all models and the CSV have loaded successfully.
 Inference is serialized inside the process to avoid concurrent access to the
 model instances.
@@ -66,7 +70,7 @@ python inference.py --image path/to/pill.jpg --output outputs/prediction.json
 CLI output uses the same contract as the HTTP service:
 
 ```json
-{ "pill_id": ["018251"] }
+{ "predictions": [{ "pill_id": "018251", "drug_name": "Example medicine", "score": 0.923456 }] }
 ```
 
 Model confidence is not a verified medicine identity and must not be used as a

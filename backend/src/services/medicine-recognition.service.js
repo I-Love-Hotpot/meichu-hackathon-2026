@@ -36,26 +36,38 @@ function inferenceConfig(env) {
   return { baseUrl, timeoutMs };
 }
 
-function extractPillIds(payload) {
+function extractPredictions(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)
     || Object.keys(payload).length !== 1) {
     throw new MedicineChatError(502, "The medicine recognizer returned invalid pill IDs.");
   }
 
-  let pillIds;
+  let predictions;
   if (Array.isArray(payload.pill_id)) {
-    pillIds = payload.pill_id;
+    predictions = payload.pill_id.map((pillId) => ({ pillId, confidence: null }));
   } else if (Array.isArray(payload.predictions)) {
-    pillIds = payload.predictions.map((prediction) => prediction?.pill_id);
+    predictions = payload.predictions.map((prediction) => ({
+      pillId: prediction?.pill_id,
+      confidence: prediction?.score,
+    }));
   } else {
     throw new MedicineChatError(502, "The medicine recognizer returned invalid pill IDs.");
   }
 
-  if (pillIds.length > 3
-    || pillIds.some((id) => typeof id !== "string" || !/^\d{6}$/.test(id))) {
+  if (predictions.length > 3
+    || predictions.some(({ pillId, confidence }) => (
+      typeof pillId !== "string"
+      || !/^\d{6}$/.test(pillId)
+      || (confidence !== null && (
+        typeof confidence !== "number"
+        || !Number.isFinite(confidence)
+        || confidence < 0
+        || confidence > 1
+      ))
+    ))) {
     throw new MedicineChatError(502, "The medicine recognizer returned invalid pill IDs.");
   }
-  return pillIds;
+  return predictions;
 }
 
 async function callInferenceService(image, mediaType, { env, fetchImpl }) {
@@ -95,10 +107,10 @@ async function callInferenceService(image, mediaType, { env, fetchImpl }) {
           : "Medicine image recognition failed. Please try again.",
     );
   }
-  return extractPillIds(payload);
+  return { predictions: extractPredictions(payload), inference: payload };
 }
 
-function toClientRecord(row) {
+function toClientRecord(row, confidence) {
   return {
     recordId: encodeRecordId(row.license_number),
     licenseNumber: row.license_number,
@@ -113,6 +125,7 @@ function toClientRecord(row) {
     imprint1: row.imprint_1 || "",
     imprint2: row.imprint_2 || "",
     imageUrl: row.image_url || "",
+    confidence,
   };
 }
 
@@ -133,7 +146,12 @@ export async function recognizeMedicineImage(
     throw new MedicineChatError(400, "The image bytes do not match the declared image format.");
   }
 
-  const pillIds = await callInferenceService(image, mediaType, { env, fetchImpl });
+  const { predictions, inference } = await callInferenceService(
+    image,
+    mediaType,
+    { env, fetchImpl },
+  );
+  const pillIds = predictions.map(({ pillId }) => pillId);
   const ownRepository = repository ? null : createMedicineRepository();
   const database = repository || ownRepository;
   try {
@@ -141,7 +159,9 @@ export async function recognizeMedicineImage(
       pillIds.map((pillId) => database.findAllByPillId(pillId)),
     );
     const medicines = matches.flat();
-    const records = medicines.map(toClientRecord);
+    const records = matches.flatMap((rows, index) => rows.map(
+      (row) => toClientRecord(row, predictions[index].confidence),
+    ));
     return {
       ok: true,
       pill_id: pillIds,
@@ -153,7 +173,7 @@ export async function recognizeMedicineImage(
       medicines,
       total: records.length,
       recordCount: pillIds.length,
-      inference: { pill_id: pillIds },
+      inference,
     };
   } finally {
     await ownRepository?.close();

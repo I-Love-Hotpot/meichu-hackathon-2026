@@ -268,6 +268,7 @@
     "manualTitle": "自行輸入",
     "manualHelp": "找不到符合的藥物時使用",
     "noMatchesManualHelp": "無符合藥品。OK：自行輸入；重試：再查一次。",
+    "confidence": "辨識準確率",
     "licenseNumber": "許可證字號",
     "dosageForm": "劑型",
     "shape": "形狀",

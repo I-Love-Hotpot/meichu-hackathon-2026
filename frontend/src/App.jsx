@@ -140,6 +140,13 @@ const recognitionStrengthFor = (record, recognition) => {
   });
   return matched?.strength || "";
 };
+const recognitionConfidenceFor = (confidence, locale) =>
+  Number.isFinite(confidence)
+    ? new Intl.NumberFormat(locale, {
+        style: "percent",
+        maximumFractionDigits: 1,
+      }).format(confidence)
+    : "";
 const chatTitleFor = (messages, fallback) => {
   const title =
     messages
@@ -425,6 +432,10 @@ export default function App() {
       imageAlt: t("matchCard.imageAlt", { name }),
       sourceRecord: record,
       details: [
+        {
+          label: t("matchCard.confidence"),
+          value: recognitionConfidenceFor(record.confidence, currentLanguage),
+        },
         {
           label: t("matchCard.licenseNumber"),
           value: record.licenseNumber,

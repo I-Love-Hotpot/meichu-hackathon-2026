@@ -88,13 +88,22 @@ class PillInferencePipeline:
 
     def predict(self, image_path):
         details = self.predict_details(image_path)
-        pill_ids = []
+        predictions = []
+        pill_ids = set()
         for candidate in details.get("candidates", [])[:3]:
             pill_id = str(candidate["pill_id"]).strip()
             if len(pill_id) != 6 or not pill_id.isdigit():
                 raise ModelLoadError(
                     f"Classifier ID {pill_id!r} must contain exactly six digits"
                 )
-            if pill_id not in pill_ids:
-                pill_ids.append(pill_id)
-        return {"pill_id": pill_ids}
+            if pill_id in pill_ids:
+                continue
+            pill_ids.add(pill_id)
+            predictions.append(
+                {
+                    "pill_id": pill_id,
+                    "drug_name": str(candidate.get("drug_name", "")).strip(),
+                    "score": round(float(candidate["score"]), 6),
+                }
+            )
+        return {"predictions": predictions}
