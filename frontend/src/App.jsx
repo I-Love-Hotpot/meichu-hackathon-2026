@@ -226,6 +226,7 @@ export default function App() {
   const [editDirections, setEditDirections] = useState("");
   const [editDirectionsEditing, setEditDirectionsEditing] = useState(false);
   const [customReminderTime, setCustomReminderTime] = useState("");
+  const [customReminderDigits, setCustomReminderDigits] = useState("");
   const [reminderReturnScreen, setReminderReturnScreen] = useState(
     SCREEN.REMINDER_SETUP,
   );
@@ -272,6 +273,7 @@ export default function App() {
   const recognitionSourceRef = useRef(null);
   const quantityBufferRef = useRef("");
   const quantityTimerRef = useRef(null);
+  const customReminderBufferRef = useRef("");
   const demoResetPressesRef = useRef(0);
   const demoResetLastPressRef = useRef(0);
   const pendingResetRef = useRef(null);
@@ -1084,6 +1086,25 @@ export default function App() {
     }, 1200);
   };
 
+  const enterCustomReminderDigit = (key) => {
+    const current = customReminderBufferRef.current;
+    const next = `${current.length >= 4 ? "" : current}${key}`;
+    customReminderBufferRef.current = next;
+    setCustomReminderDigits(next);
+    setCustomReminderTime("");
+    setReminderInputError(false);
+
+    if (next.length === 4) {
+      const hours = Number(next.slice(0, 2));
+      const minutes = Number(next.slice(2));
+      if (hours <= 23 && minutes <= 59) {
+        setCustomReminderTime(`${next.slice(0, 2)}:${next.slice(2)}`);
+      } else {
+        setReminderInputError(true);
+      }
+    }
+  };
+
   const scrollMatchCard = (direction) => {
     const element = matchScrollRef.current;
     if (!element) return;
@@ -1243,7 +1264,9 @@ export default function App() {
   };
 
   const openCustomReminder = (returnScreen, fromFocus = focus) => {
+    customReminderBufferRef.current = "";
     setCustomReminderTime("");
+    setCustomReminderDigits("");
     setReminderInputError(false);
     setReminderReturnScreen(returnScreen);
     navigate(SCREEN.CUSTOM_REMINDER, fromFocus);
@@ -1820,7 +1843,9 @@ export default function App() {
           ),
         };
 
-      case SCREEN.CUSTOM_REMINDER:
+      case SCREEN.CUSTOM_REMINDER: {
+        const paddedDigits = customReminderDigits.padEnd(4, "_");
+        const displayedTime = `${paddedDigits.slice(0, 2)}:${paddedDigits.slice(2)}`;
         return {
           title: t("add.customReminderTitle"),
           count: 1,
@@ -1835,21 +1860,25 @@ export default function App() {
                 saveCustomReminder();
               }}
             >
-              <label htmlFor="custom-reminder-time">
-                {t("add.customReminderLabel")}
-              </label>
-              <input
-                id="custom-reminder-time"
-                type="time"
-                value={customReminderTime}
-                onChange={(event) => {
-                  setCustomReminderTime(event.target.value);
-                  setReminderInputError(false);
-                }}
-                aria-invalid={reminderInputError}
-                required
-                autoFocus
-              />
+              <div
+                className="focusable-field keypad-time-field is-selected"
+                role="group"
+                aria-labelledby="custom-reminder-time-label"
+              >
+                <span
+                  id="custom-reminder-time-label"
+                  className="keypad-time-label"
+                >
+                  {t("add.customReminderLabel")}
+                </span>
+                <output
+                  className="keypad-time-output"
+                  aria-live="polite"
+                  aria-invalid={reminderInputError}
+                >
+                  {displayedTime}
+                </output>
+              </div>
               <p
                 className={`helper${reminderInputError ? " input-error" : ""}`}
                 aria-live="polite"
@@ -1865,6 +1894,7 @@ export default function App() {
             </form>
           ),
         };
+      }
 
       case SCREEN.ADD_COMPLETE:
         return {
@@ -3192,6 +3222,12 @@ export default function App() {
     if (screen === SCREEN.HOME && !event.repeat) {
       demoResetPressesRef.current = 0;
       demoResetLastPressRef.current = 0;
+    }
+
+    if (screen === SCREEN.CUSTOM_REMINDER && /^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      if (!event.repeat) enterCustomReminderDigit(event.key);
+      return;
     }
 
     if (/^[0oO]$/.test(event.key) && screenConfig.onInputKey) {

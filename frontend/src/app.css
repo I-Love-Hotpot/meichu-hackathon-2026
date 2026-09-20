@@ -315,6 +315,27 @@
   outline: none;
 }
 
+.keypad-time-label {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.keypad-time-output {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--divider);
+  border-radius: 8px;
+  color: var(--ink);
+  background: white;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
 .medicine-row {
   min-height: 58px;
   gap: 8px;
@@ -1224,6 +1245,20 @@
     font-size: 12px;
     line-height: 14px;
     white-space: normal;
+  }
+
+  .keypad-time-label {
+    font-size: 12px;
+    line-height: 14px;
+  }
+
+  .keypad-time-output {
+    min-height: 28px;
+    padding: 4px 6px;
+    border-width: 2px;
+    border-radius: 4px;
+    font-size: 14px;
+    letter-spacing: 1px;
   }
 
   .manual-form input,
