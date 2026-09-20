@@ -504,6 +504,20 @@
   flex-shrink: 0;
 }
 
+.chat-medicine-search-page {
+  min-width: 0;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-medicine-results {
+  min-height: auto;
+  flex: none;
+  overflow: visible;
+}
+
 .chat-search-status {
   margin: 0;
   color: var(--secondary);
