@@ -36,6 +36,28 @@ function inferenceConfig(env) {
   return { baseUrl, timeoutMs };
 }
 
+function extractPillIds(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)
+    || Object.keys(payload).length !== 1) {
+    throw new MedicineChatError(502, "The medicine recognizer returned invalid pill IDs.");
+  }
+
+  let pillIds;
+  if (Array.isArray(payload.pill_id)) {
+    pillIds = payload.pill_id;
+  } else if (Array.isArray(payload.predictions)) {
+    pillIds = payload.predictions.map((prediction) => prediction?.pill_id);
+  } else {
+    throw new MedicineChatError(502, "The medicine recognizer returned invalid pill IDs.");
+  }
+
+  if (pillIds.length > 3
+    || pillIds.some((id) => typeof id !== "string" || !/^\d{6}$/.test(id))) {
+    throw new MedicineChatError(502, "The medicine recognizer returned invalid pill IDs.");
+  }
+  return pillIds;
+}
+
 async function callInferenceService(image, mediaType, { env, fetchImpl }) {
   const { baseUrl, timeoutMs } = inferenceConfig(env);
   let response;
@@ -61,20 +83,19 @@ async function callInferenceService(image, mediaType, { env, fetchImpl }) {
     const statusCode = [400, 413, 415, 502, 503].includes(response.status)
       ? response.status
       : 502;
+    const providerMessage = typeof payload?.error === "string"
+      ? payload.error.trim().slice(0, 1000)
+      : "";
     throw new MedicineChatError(
       statusCode,
       statusCode < 500
-        ? payload?.error || "The image could not be processed."
-        : "Medicine image recognition failed. Please try again.",
+        ? providerMessage || "The image could not be processed."
+        : statusCode === 502 && providerMessage
+          ? providerMessage
+          : "Medicine image recognition failed. Please try again.",
     );
   }
-  if (!payload || Object.keys(payload).length !== 1
-    || !Array.isArray(payload.pill_id)
-    || payload.pill_id.length > 3
-    || payload.pill_id.some((id) => typeof id !== "string" || !/^\d{6}$/.test(id))) {
-    throw new MedicineChatError(502, "The medicine recognizer returned invalid pill IDs.");
-  }
-  return payload.pill_id;
+  return extractPillIds(payload);
 }
 
 function toClientRecord(row) {

@@ -783,7 +783,9 @@ export default function App() {
     if (error.status === 429) return t("add.recognitionBusy");
     if (error.status === 504) return t("add.recognitionTimedOut");
     if (error.status === 0) return t("add.recognitionNetworkError");
-    return t("add.recognitionUnavailable");
+    return typeof error.message === "string" && error.message.trim()
+      ? error.message.trim()
+      : t("add.recognitionUnavailable");
   };
 
   const runRecognition = async (source) => {
@@ -1639,8 +1641,10 @@ export default function App() {
               aria-live="polite"
               role={failed ? "alert" : "status"}
             >
-              <p className="prompt">
-                {failed ? t("add.recognitionFailed") : t("add.recognizing")}
+              <p className={`prompt${failed ? " input-error" : ""}`}>
+                {failed
+                  ? recognitionError || t("add.recognitionFailed")
+                  : t("add.recognizing")}
               </p>
               {!failed && (
                 <div
@@ -1650,11 +1654,11 @@ export default function App() {
                   <span />
                 </div>
               )}
-              <p className={`helper${failed ? " input-error" : ""}`}>
-                {failed
-                  ? recognitionError
-                  : recognitionSourceLabel || t("add.recognizingHelp")}
-              </p>
+              {!failed && (
+                <p className="helper">
+                  {recognitionSourceLabel || t("add.recognizingHelp")}
+                </p>
+              )}
             </div>
           ),
         };

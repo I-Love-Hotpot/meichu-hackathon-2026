@@ -8,6 +8,7 @@ const apiBaseUrl = (
 )
   .trim()
   .replace(/\/+$/, "");
+const recognitionApiBaseUrl = import.meta.env.PROD ? "" : apiBaseUrl;
 
 const medicineRecordFields = [
   "recordId",
@@ -68,10 +69,10 @@ export class MedicineApiError extends Error {
   }
 }
 
-async function requestJson(path, options = {}) {
+async function requestJson(path, options = {}, baseUrl = apiBaseUrl) {
   let response;
   try {
-    response = await fetch(`${apiBaseUrl}${path}`, {
+    response = await fetch(`${baseUrl}${path}`, {
       ...options,
       headers: {
         Accept: "application/json",
@@ -83,12 +84,32 @@ async function requestJson(path, options = {}) {
     throw new MedicineApiError("Cannot connect to the medicine service.");
   }
 
+  let responseBody;
+  try {
+    responseBody = await response.text();
+  } catch {
+    throw new MedicineApiError("The server response could not be read.", {
+      status: response.status,
+    });
+  }
+
   let payload;
   try {
-    payload = await response.json();
+    payload = JSON.parse(responseBody);
   } catch {
+    if (!response.ok) {
+      const contentType = response.headers.get("content-type") || "";
+      const message = contentType.includes("text/html")
+        ? `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""}`
+        : responseBody.trim().slice(0, 1000);
+      throw new MedicineApiError(
+        message || `Medicine service request failed (${response.status}).`,
+        { status: response.status, payload: responseBody || null },
+      );
+    }
     throw new MedicineApiError("The server returned an invalid response.", {
       status: response.status,
+      payload: responseBody || null,
     });
   }
 
@@ -176,7 +197,7 @@ export async function recognizeMedicineImage(file, { signal } = {}) {
     headers: { "Content-Type": file.type },
     body: file,
     signal,
-  });
+  }, recognitionApiBaseUrl);
   if (
     payload?.ok !== true ||
     typeof payload.model !== "string" ||
