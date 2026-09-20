@@ -19,6 +19,16 @@
     "noLeftAction": "無左軟鍵",
     "noRightAction": "無右軟鍵"
   },
+  "phoneSetup": {
+    "title": "開始使用",
+    "prompt": "請先輸入手機號碼",
+    "description": "手機號碼會儲存在這台裝置，下次開啟時可直接進入主選單。",
+    "label": "手機號碼",
+    "placeholder": "例如：0912345678",
+    "continue": "繼續",
+    "invalid": "請輸入有效的手機號碼。",
+    "storageError": "無法儲存手機號碼，請確認瀏覽器允許儲存資料。"
+  },
   "home": {
     "title": "主選單",
     "medicineRecognition": "藥品辨識",

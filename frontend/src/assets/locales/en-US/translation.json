@@ -19,6 +19,16 @@
     "noLeftAction": "No left soft-key action",
     "noRightAction": "No right soft-key action"
   },
+  "phoneSetup": {
+    "title": "Get started",
+    "prompt": "Enter your mobile number",
+    "description": "Your number is saved on this device so future visits can open the main menu directly.",
+    "label": "Mobile number",
+    "placeholder": "Example: 0912345678",
+    "continue": "Continue",
+    "invalid": "Enter a valid mobile number.",
+    "storageError": "The mobile number could not be saved. Allow this browser to store site data and try again."
+  },
   "home": {
     "title": "Main menu",
     "medicineRecognition": "Medicine recognition",
