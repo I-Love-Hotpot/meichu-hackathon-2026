@@ -10,7 +10,7 @@ services:
       PORT: 3001
       DB_HOST: db
       DB_PORT: 3306
-      MEDICINE_INFERENCE_URL: http://pill-inference:8000
+      MEDICINE_INFERENCE_URL: http://chia.dstw.dev
     healthcheck:
       test:
         [
@@ -26,7 +26,6 @@ services:
     networks:
       - coolify
       - db-net
-      - medicine-inference
 
   frontend:
     build:
@@ -42,6 +41,4 @@ networks:
   coolify:
     external: true
   db-net:
-    external: true
-  medicine-inference:
     external: true
