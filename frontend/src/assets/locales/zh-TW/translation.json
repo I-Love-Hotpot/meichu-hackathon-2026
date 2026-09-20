@@ -43,7 +43,7 @@
   "demoReset": {
     "title": "重置 Demo 資料",
     "warningTitle": "確定重置全部資料？",
-    "description": "這會清除用藥紀錄、對話歷史、我的藥袋與已儲存的藥品設定。",
+    "description": "這會清除已儲存的手機號碼、用藥紀錄、對話歷史、我的藥袋與藥品設定。",
     "irreversible": "此動作無法復原；顯示語言會保留。",
     "yes": "是，重置",
     "no": "否",

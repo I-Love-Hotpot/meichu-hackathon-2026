@@ -1,36 +1,17 @@
 .phone-setup {
   min-height: 100%;
+  flex-shrink: 0;
+}
+
+.phone-language-page {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
-.phone-setup label {
-  margin-top: 4px;
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.phone-setup input {
-  width: 100%;
-  height: 50px;
-  padding: 10px 12px;
-  border: 2px solid var(--divider);
-  border-radius: 8px;
-  color: var(--ink);
-  background: white;
-  font: inherit;
-  font-family: Roboto, Arial, sans-serif;
-  font-size: 18px;
-  outline: none;
-}
-
-.phone-setup input:focus {
-  border-color: var(--focus-stroke);
-  box-shadow: 0 0 0 2px var(--focus);
-}
-
-.phone-setup input[aria-invalid="true"] {
-  border-color: var(--danger);
-  background: var(--danger-soft);
+@media (max-width: 128px), (max-height: 160px) {
+  .phone-language-page {
+    gap: 3px;
+  }
 }

@@ -43,7 +43,7 @@
   "demoReset": {
     "title": "Reset demo data",
     "warningTitle": "Reset all demo data?",
-    "description": "This will clear medicine records, conversation history, medicine bag entries, and saved medicine settings.",
+    "description": "This will clear the saved phone number, medicine records, conversation history, medicine bag entries, and medicine settings.",
     "irreversible": "This action cannot be undone. Your display language will be kept.",
     "yes": "Yes, reset",
     "no": "No",

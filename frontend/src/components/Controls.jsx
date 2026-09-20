@@ -28,12 +28,15 @@ export function FocusableField({
   maxLength,
   rows,
   focusId,
+  inputRef,
   className = '',
   onSelect,
   onEditingChange,
   onChange,
+  ...inputProps
 }) {
-  const fieldRef = useRef(null)
+  const internalRef = useRef(null)
+  const fieldRef = inputRef || internalRef
   const Field = multiline ? 'textarea' : 'input'
 
   useEffect(() => {
@@ -47,7 +50,7 @@ export function FocusableField({
       }
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [editing])
+  }, [editing, fieldRef])
 
   const enterInputMode = () => {
     onSelect()
@@ -70,6 +73,7 @@ export function FocusableField({
     >
       <label htmlFor={id}>{label}</label>
       <Field
+        {...inputProps}
         ref={fieldRef}
         id={id}
         value={value}
