@@ -12,7 +12,11 @@ For local full-stack development with Node.js 22, configure `backend/.env`, run 
 
 For Docker development against the hosted backend, copy the repository-root `.env.example` to `.env`, then run `docker compose up --build -d` and open `http://localhost:8080`. To use the local Compose backend instead, set `VITE_API_BASE_URL=` and configure the frontend development proxy target for the `dev-backend` service rather than a browser-side `localhost` URL.
 
-The production bundle uses `https://api.mc.dstw.dev` when `VITE_API_BASE_URL` is not defined. The included Nginx image can also proxy same-origin `/api/` requests to the Compose service hostname `backend`; build with an explicitly empty `VITE_API_BASE_URL` when using that deployment shape. SPA routes still fall back to `index.html`.
+The production image-recognition request always uses the included Nginx
+same-origin `/api/` proxy to the Compose service hostname `backend`. This lets
+the browser read upstream HTTP errors that would otherwise be hidden by CORS.
+Other API requests use `https://api.mc.dstw.dev` when `VITE_API_BASE_URL` is not
+defined. SPA routes still fall back to `index.html`.
 
 For a separate API domain, set `VITE_API_BASE_URL=https://your-api.example.com` before building and allow the frontend origin in backend `ALLOWED_ORIGINS`. This value is embedded in the browser bundle and must never contain a secret. Keep Gemini and Google Translation keys only in the backend environment; never give those keys a `VITE_` prefix.
 

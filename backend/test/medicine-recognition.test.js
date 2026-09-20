@@ -79,6 +79,39 @@ test("no detection succeeds with empty candidate arrays", async () => {
   assert.deepEqual(result.medicines, []);
 });
 
+test("hosted inference predictions are converted to pill IDs", async () => {
+  const secondPillId = "024614";
+  const requestedIds = [];
+  const result = await recognizeMedicineImage(
+    { image: jpeg, mediaType: "image/jpeg" },
+    {
+      env,
+      fetchImpl: async (url, options) => {
+        assert.equal(url, "http://chia.dstw.dev/recognize");
+        assert.equal(options.headers["Content-Type"], "image/jpeg");
+        assert.deepEqual(options.body, jpeg);
+        return new Response(JSON.stringify({
+          predictions: [
+            { pill_id: pillId, drug_name: medicine.chinese_name, score: 0.34 },
+            { pill_id: secondPillId, drug_name: "PANADOL COLD", score: 0.12 },
+          ],
+        }));
+      },
+      repository: {
+        findAllByPillId: async (id) => {
+          requestedIds.push(id);
+          return id === pillId ? [medicine] : [];
+        },
+      },
+    },
+  );
+
+  assert.deepEqual(requestedIds, [pillId, secondPillId]);
+  assert.deepEqual(result.pill_id, [pillId, secondPillId]);
+  assert.deepEqual(result.inference, { pill_id: [pillId, secondPillId] });
+  assert.deepEqual(result.medicines, [medicine]);
+});
+
 test("recognition validates image type, bytes, and size", async () => {
   await assert.rejects(
     () => recognizeMedicineImage({ image: Buffer.from("bad"), mediaType: "image/jpeg" }),
@@ -108,6 +141,42 @@ test("recognition rejects non-numeric inference IDs", async () => {
       },
     ),
     { statusCode: 502 },
+  );
+});
+
+test("recognition rejects invalid hosted predictions", async () => {
+  await assert.rejects(
+    () => recognizeMedicineImage(
+      { image: jpeg, mediaType: "image/jpeg" },
+      {
+        env,
+        fetchImpl: async () => new Response(JSON.stringify({
+          predictions: [{ pill_id: medicine.license_number }],
+        })),
+        repository: { findAllByPillId: async () => assert.fail("must not query") },
+      },
+    ),
+    { statusCode: 502 },
+  );
+});
+
+test("recognition preserves a specific inference 502 error", async () => {
+  await assert.rejects(
+    () => recognizeMedicineImage(
+      { image: jpeg, mediaType: "image/jpeg" },
+      {
+        env,
+        fetchImpl: async () => new Response(
+          JSON.stringify({ error: "Pill detector model could not be loaded." }),
+          { status: 502 },
+        ),
+        repository: { findAllByPillId: async () => assert.fail("must not query") },
+      },
+    ),
+    {
+      statusCode: 502,
+      message: "Pill detector model could not be loaded.",
+    },
   );
 });
 
