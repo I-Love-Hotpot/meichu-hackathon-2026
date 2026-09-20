@@ -1,13 +1,14 @@
 export const defaultApiBaseUrl = "https://api.mc.dstw.dev";
 
-const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-const apiBaseUrl = (
-  configuredApiBaseUrl === undefined
-    ? defaultApiBaseUrl
-    : configuredApiBaseUrl
-)
-  .trim()
-  .replace(/\/+$/, "");
+// const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+// const apiBaseUrl = (
+//   configuredApiBaseUrl === undefined
+//     ? defaultApiBaseUrl
+//     : configuredApiBaseUrl
+// )
+//   .trim()
+//   .replace(/\/+$/, "");
+const apiBaseUrl = defaultApiBaseUrl.trim().replace(/\/+$/, "");
 const recognitionApiBaseUrl = import.meta.env.PROD ? "" : apiBaseUrl;
 
 const medicineRecordFields = [
@@ -192,12 +193,16 @@ export async function recognizeMedicineImage(file, { signal } = {}) {
     });
   }
 
-  const payload = await requestJson("/api/medicine/recognize", {
-    method: "POST",
-    headers: { "Content-Type": file.type },
-    body: file,
-    signal,
-  }, recognitionApiBaseUrl);
+  const payload = await requestJson(
+    "/api/medicine/recognize",
+    {
+      method: "POST",
+      headers: { "Content-Type": file.type },
+      body: file,
+      signal,
+    },
+    recognitionApiBaseUrl,
+  );
   if (
     payload?.ok !== true ||
     typeof payload.model !== "string" ||
