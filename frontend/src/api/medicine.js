@@ -8,7 +8,6 @@ const apiBaseUrl = (
 )
   .trim()
   .replace(/\/+$/, "");
-const recognitionApiBaseUrl = import.meta.env.PROD ? "" : apiBaseUrl;
 
 const medicineRecordFields = [
   "recordId",
@@ -227,7 +226,7 @@ export async function recognizeMedicineImage(file, { signal } = {}) {
     headers: { "Content-Type": file.type },
     body: file,
     signal,
-  }, recognitionApiBaseUrl);
+  });
   if (
     payload?.ok !== true ||
     typeof payload.model !== "string" ||
