@@ -55,7 +55,7 @@ The interactive Swagger UI is available at `http://localhost:3001/api-docs`.
 - `GOOGLE_TRANSLATE_API_KEY`: server-only Google Cloud API key with Cloud Translation API enabled. Required when matched CSV fields contain Chinese text.
 - `GOOGLE_TRANSLATE_TIMEOUT_MS`: Translation API deadline from `1000` to `120000`; default `15000`.
 - `MEDICINE_CSV_PATH`: optional CSV path (relative paths resolve from the server working directory); empty uses `backend/resources/42_2.csv`. Invalid or unreadable files return HTTP 503, without falling back to model memory.
-- `MEDICINE_INFERENCE_URL`: internal URL of the separate inference service; local default `http://127.0.0.1:8000`, Compose value `http://pill-inference:8000`.
+- `MEDICINE_INFERENCE_URL`: URL of the hosted inference service; default `http://chia.dstw.dev`.
 - `MEDICINE_RECOGNIZER_TIMEOUT_MS`: recognition deadline from `1000` to `120000`; default `30000`.
 
 ## Look up a medicine by license number
@@ -130,7 +130,7 @@ curl http://localhost:3001/api/medicine/recognize \
   --data-binary '@medicine.jpg'
 ```
 
-The separate `pill-inference` container loads `pill_detector.pt` and
+The hosted inference service loads `pill_detector.pt` and
 `pill_classifier.pt` once at startup, detects and crops the pill with YOLO,
 classifies it with MobileNetV3, and returns only
 `{ "pill_id": [...] }`, containing up to three six-digit numeric IDs. The Node
@@ -148,11 +148,10 @@ PyTorch, Ultralytics, OpenCV, the Python source, models, and inference CSV exist
 only in the inference image. The Node backend image contains no Python or
 PyTorch dependencies.
 
-Start the inference Compose project first so it creates the shared network, then
-start the existing application Compose project:
+Start the application Compose project; the backend connects to the hosted
+inference service over HTTP:
 
 ```bash
-docker compose -f docker-compose.inference.yaml up --build -d
 docker compose up --build -d
 ```
 

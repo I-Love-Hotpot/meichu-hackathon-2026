@@ -20,7 +20,7 @@ function imageMatchesMediaType(image, mediaType) {
 }
 
 function inferenceConfig(env) {
-  const baseUrl = (env.MEDICINE_INFERENCE_URL || "http://127.0.0.1:8000")
+  const baseUrl = (env.MEDICINE_INFERENCE_URL || "http://chia.dstw.dev")
     .trim()
     .replace(/\/+$/, "");
   const timeoutMs = Number(env.MEDICINE_RECOGNIZER_TIMEOUT_MS || 30000);

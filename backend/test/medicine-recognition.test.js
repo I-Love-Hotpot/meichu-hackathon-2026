@@ -27,13 +27,12 @@ const medicine = {
 };
 
 const env = {
-  MEDICINE_INFERENCE_URL: "http://pill-inference:8000",
   MEDICINE_RECOGNIZER_TIMEOUT_MS: "5000",
 };
 
 function inferenceResponse(pillIds) {
   return async (url, options) => {
-    assert.equal(url, "http://pill-inference:8000/recognize");
+    assert.equal(url, "http://chia.dstw.dev/recognize");
     assert.equal(options.headers["Content-Type"], "image/jpeg");
     assert.deepEqual(options.body, jpeg);
     return new Response(JSON.stringify({ pill_id: pillIds }));
@@ -124,7 +123,7 @@ async function createRouteApp(t, recognize) {
   return app;
 }
 
-test("raw image API passes bytes and repository to local recognition", async (t) => {
+test("raw image API passes bytes and repository to recognition", async (t) => {
   let received;
   const responseBody = {
     ok: true,

@@ -10,7 +10,7 @@ Browser
   │      ▼
   └─ backend (Fastify, port 3001)
          ├─ MariaDB: medicine records
-         └─ pill-inference: image recognition (port 8000)
+         └─ chia.dstw.dev: hosted pill image recognition
                 ├─ YOLO: pill detection/crop
                 └─ MobileNetV3: Top-3 classification
 ```
@@ -51,8 +51,8 @@ docker-compose.inference.yaml standalone PyTorch inference service
 
 1. The client posts raw JPEG, PNG, or WebP bytes to
    `POST /api/medicine/recognize` (maximum 5 MiB).
-2. `backend` forwards the bytes to `http://pill-inference:8000/recognize`.
-3. `pill-inference` returns only up to three six-digit numeric IDs:
+2. `backend` forwards the bytes to `http://chia.dstw.dev/recognize`.
+3. The hosted inference service returns only up to three six-digit numeric IDs:
 
    ```json
    { "pill_id": ["018251"] }
@@ -62,23 +62,10 @@ docker-compose.inference.yaml standalone PyTorch inference service
    database rows as JSON in `medicines`. The normalized `records` field remains
    available for the current frontend UI.
 
-## Docker networks
-
-- The application Compose projects use their normal app/database networks.
-- `docker-compose.inference.yaml` creates the shared
-  `medicine-inference-net` network.
-- Development and production backends join that external network and resolve
-  the inference service by the `pill-inference` service name.
-- Port 8000 is bound to `127.0.0.1` only; container traffic uses the shared
-  network.
-
 ## Start development services
-
-The inference project must start first because it owns the shared network:
 
 ```bash
 cp .env.example .env
-docker compose -f docker-compose.inference.yaml up --build -d
 docker compose up --build -d
 ```
 
@@ -88,24 +75,21 @@ Service URLs:
 - Backend: `http://localhost:3001`
 - Swagger: `http://localhost:3001/api-docs`
 - Adminer: `http://localhost:3002`
-- Inference health check: `http://127.0.0.1:8000/health`
+- Inference health check: `http://chia.dstw.dev/health`
 
-Stop both Compose projects separately:
+Stop the application Compose project:
 
 ```bash
 docker compose down
-docker compose -f docker-compose.inference.yaml down
 ```
 
 ## Start production services
 
 Create the externally managed `coolify` and `db-net` networks as required by
-the deployment environment, then start the database, inference, and app
-projects:
+the deployment environment, then start the database and app projects:
 
 ```bash
 docker compose -f docker-compose.db.prod.yaml up -d
-docker compose -f docker-compose.inference.yaml up --build -d
 docker compose -f docker-compose.prod.yaml up --build -d
 ```
 
