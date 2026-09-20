@@ -12,13 +12,14 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.runtime.txt ./requirements.runtime.txt
-
 RUN python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir \
         --index-url https://download.pytorch.org/whl/cpu \
-        torch==2.5.1 torchvision==0.20.1 \
-    && python -m pip install --no-cache-dir -r requirements.runtime.txt
+        torch==2.5.1 torchvision==0.20.1
+
+COPY requirements.runtime.txt ./requirements.runtime.txt
+
+RUN python -m pip install --no-cache-dir -r requirements.runtime.txt
 
 COPY config.yaml inference.py server.py ./
 COPY src/__init__.py src/console.py src/detector.py src/errors.py \

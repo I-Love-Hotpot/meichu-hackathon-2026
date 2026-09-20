@@ -52,7 +52,10 @@ docker compose -f docker-compose.inference.yaml up --build -d
 curl http://127.0.0.1:8000/health
 ```
 
-The container installs CPU-only PyTorch and does not require a GPU.
+The container installs CPU-only PyTorch and does not require a GPU. Native
+runtime packages are pinned to versions whose Linux wheels work on baseline
+x86-64 KVM CPUs; update NumPy, OpenCV, and Pandas together and verify the image
+on the deployment host before changing those pins.
 
 ## Local CLI
 
