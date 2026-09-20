@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FocusableField } from "./Controls.jsx";
 import DeviceShell from "./DeviceShell.jsx";
 import "./PhoneGate.css";
 
@@ -26,14 +27,23 @@ export default function PhoneGate({ children }) {
   );
   const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef(null);
+  const shellRef = useRef(null);
+
+  useEffect(() => {
+    if (!isRegistered && !isEditing) shellRef.current?.focus();
+  }, [isRegistered, isEditing]);
 
   if (isRegistered) return children;
+
+  const toggleInputMode = () => setIsEditing((editing) => !editing);
 
   const savePhoneNumber = () => {
     const normalizedPhoneNumber = normalizePhoneNumber(phoneNumber);
     if (!isValidPhoneNumber(normalizedPhoneNumber)) {
       setError(t("phoneSetup.invalid"));
+      setIsEditing(true);
       inputRef.current?.focus();
       return;
     }
@@ -43,14 +53,25 @@ export default function PhoneGate({ children }) {
       setIsRegistered(true);
     } catch {
       setError(t("phoneSetup.storageError"));
+      setIsEditing(true);
       inputRef.current?.focus();
     }
   };
 
   const handleKeyDown = (event) => {
-    if (event.key !== "Enter" && event.key !== "SoftLeft") return;
-    event.preventDefault();
-    savePhoneNumber();
+    if (event.nativeEvent?.isComposing || event.keyCode === 229) return;
+    if (event.key === "Escape" || event.key === "SoftLeft") {
+      event.preventDefault();
+      savePhoneNumber();
+      return;
+    }
+    if (event.target instanceof HTMLInputElement) return;
+    if (event.key === "Enter" && event.target instanceof HTMLButtonElement)
+      return;
+    if (event.key === "Enter" || /^[0oO]$/.test(event.key)) {
+      event.preventDefault();
+      toggleInputMode();
+    }
   };
 
   return (
@@ -59,32 +80,39 @@ export default function PhoneGate({ children }) {
       left={t("phoneSetup.continue")}
       right=""
       onLeft={savePhoneNumber}
-      onCenter={savePhoneNumber}
-      centerLabel={t("phoneSetup.continue")}
+      onCenter={toggleInputMode}
+      onCenterPointerDown={(event) => {
+        // Keep input focus until the click toggles editing off.
+        if (isEditing) event.preventDefault();
+      }}
+      centerLabel={t(isEditing ? "common.finish" : "common.select")}
       noRightLabel={t("common.noRightAction")}
       onKeyDown={handleKeyDown}
+      screenRef={shellRef}
     >
       <form
-        className="phone-setup"
+        className="manual-form phone-setup"
         onSubmit={(event) => {
           event.preventDefault();
           savePhoneNumber();
         }}
       >
         <p className="prompt">{t("phoneSetup.prompt")}</p>
-        <p className="helper">{t("phoneSetup.description")}</p>
-        <label htmlFor="phone-number">{t("phoneSetup.label")}</label>
-        <input
-          ref={inputRef}
+        <FocusableField
+          inputRef={inputRef}
           id="phone-number"
+          label={t("phoneSetup.label")}
           type="tel"
           inputMode="tel"
           autoComplete="tel"
-          autoFocus
+          selected
+          editing={isEditing}
           value={phoneNumber}
           placeholder={t("phoneSetup.placeholder")}
           aria-invalid={Boolean(error)}
-          aria-describedby={error ? "phone-number-error" : undefined}
+          aria-describedby={error ? "phone-number-error" : "phone-number-help"}
+          onSelect={() => setIsEditing(true)}
+          onEditingChange={setIsEditing}
           onChange={(event) => {
             setPhoneNumber(event.target.value);
             if (error) setError("");
@@ -99,6 +127,9 @@ export default function PhoneGate({ children }) {
             {error}
           </p>
         )}
+        <p id="phone-number-help" className="helper">
+          {t("phoneSetup.description")}
+        </p>
       </form>
     </DeviceShell>
   );

@@ -96,6 +96,7 @@ export function SoftKeyBar({
   noRightLabel = 'No right soft-key action',
   onLeft,
   onCenter,
+  onCenterPointerDown,
   onRight,
 }) {
   return (
@@ -103,7 +104,7 @@ export function SoftKeyBar({
       <button type="button" onClick={onLeft} disabled={!left} aria-label={left || noLeftLabel}>
         <span>{left}</span>
       </button>
-      <button type="button" onClick={onCenter} aria-label={centerLabel}>
+      <button type="button" onClick={onCenter} onPointerDown={onCenterPointerDown} aria-label={centerLabel}>
         <SelectIcon aria-hidden="true" />
       </button>
       <button type="button" onClick={onRight} disabled={!right} aria-label={right || noRightLabel}>
@@ -124,6 +125,7 @@ export default function DeviceShell({
   right,
   onLeft,
   onCenter,
+  onCenterPointerDown,
   onRight,
   centerLabel,
   noLeftLabel,
@@ -149,6 +151,7 @@ export default function DeviceShell({
         noRightLabel={noRightLabel}
         onLeft={onLeft}
         onCenter={onCenter}
+        onCenterPointerDown={onCenterPointerDown}
         onRight={onRight}
       />
     </main>
