@@ -6,7 +6,7 @@ services:
       MYSQL_DATABASE: ${DB_DATABASE:-backend}
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
     ports:
-      - "${DB_PORT:-3306}:3306"
+      - "3306"
     volumes:
       - mariadb_prod_data:/var/lib/mysql
     healthcheck:
