@@ -538,13 +538,15 @@ export default function App() {
   const scrollScreenContent = (direction) => {
     const screenContent = shellRef.current?.querySelector(".screen-content");
     if (!screenContent) return;
-    const candidates = [
-      screenContent,
-      ...screenContent.querySelectorAll(".emergency-detail, .cpr-step"),
-    ];
+    const candidates = [screenContent, ...screenContent.querySelectorAll("*")];
     const scroller =
       candidates.find(
-        (candidate) => candidate.scrollHeight > candidate.clientHeight + 1,
+        (candidate) => {
+          if (candidate.scrollHeight <= candidate.clientHeight + 1)
+            return false;
+          const overflowY = window.getComputedStyle(candidate).overflowY;
+          return ["auto", "scroll", "overlay"].includes(overflowY);
+        },
       ) || screenContent;
     const distance = Math.max(32, Math.round(scroller.clientHeight * 0.7));
     scroller.scrollBy({ top: direction * distance, behavior: "smooth" });
@@ -2470,8 +2472,6 @@ export default function App() {
           left: "",
           right: t("common.back"),
           emergency: true,
-          onArrowUp: () => scrollScreenContent(-1),
-          onArrowDown: () => scrollScreenContent(1),
           content: (
             <div className="emergency-detail">
               <p className="emergency-detail__label">
@@ -3008,8 +3008,6 @@ export default function App() {
           left: "",
           right: t("common.back"),
           emergency: true,
-          onArrowUp: () => scrollScreenContent(-1),
-          onArrowDown: () => scrollScreenContent(1),
           content: (
             <div className="emergency-detail">
               <ol>
@@ -3029,8 +3027,6 @@ export default function App() {
           left: "",
           right: t("common.back"),
           emergency: true,
-          onArrowUp: () => scrollScreenContent(-1),
-          onArrowDown: () => scrollScreenContent(1),
           content: (
             <div className="emergency-detail">
               <ol>
@@ -3062,8 +3058,6 @@ export default function App() {
           emergency: true,
           onEnter: advanceCpr,
           onLeft: advanceCpr,
-          onArrowUp: () => scrollScreenContent(-1),
-          onArrowDown: () => scrollScreenContent(1),
           content: (
             <div className="cpr-step" aria-live="polite">
               <p className="cpr-step__progress">
@@ -3098,8 +3092,6 @@ export default function App() {
           horizontal: true,
           onEnter: finishDemoReset,
           onLeft: finishDemoReset,
-          onArrowUp: () => scrollScreenContent(-1),
-          onArrowDown: () => scrollScreenContent(1),
           content: (
             <div className="demo-reset-content">
               <FeedbackCard danger title={t("demoReset.warningTitle")}>
@@ -3225,11 +3217,13 @@ export default function App() {
         if (screenConfig.onArrowUp) screenConfig.onArrowUp();
         else if (!screenConfig.horizontal && screenConfig.count > 1)
           move(-1, screenConfig.count);
+        else scrollScreenContent(-1);
         break;
       case "ArrowDown":
         if (screenConfig.onArrowDown) screenConfig.onArrowDown();
         else if (!screenConfig.horizontal && screenConfig.count > 1)
           move(1, screenConfig.count);
+        else scrollScreenContent(1);
         break;
       case "ArrowLeft":
         if (
