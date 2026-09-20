@@ -101,13 +101,64 @@ const MedicineChat = forwardRef(function MedicineChat(
     form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   }, []);
 
-  const scrollConversation = useCallback((direction) => {
-    setEditingId(null);
-    const scroller = rootRef.current?.parentElement;
-    if (!scroller) return;
-    const distance = Math.max(32, Math.round(scroller.clientHeight * 0.7));
-    scroller.scrollBy({ top: direction * distance, behavior: "smooth" });
-  }, []);
+  const scrollConversation = useCallback(
+    (direction) => {
+      setEditingId(null);
+      const root = rootRef.current;
+      const scroller = root?.parentElement;
+      if (!root || !scroller) return;
+
+      const elements = [...root.querySelectorAll("[data-chat-focus]")].filter(
+        (element) => !element.disabled,
+      );
+      const currentIndex = elements.findIndex(
+        (element) => element.dataset.chatFocus === focusedId,
+      );
+      const distance = Math.max(32, Math.round(scroller.clientHeight * 0.7));
+      const maxScrollTop = Math.max(
+        0,
+        scroller.scrollHeight - scroller.clientHeight,
+      );
+      let targetScrollTop = Math.max(
+        0,
+        Math.min(maxScrollTop, scroller.scrollTop + direction * distance),
+      );
+      const scrollerRect = scroller.getBoundingClientRect();
+      const sweepStart = Math.min(scroller.scrollTop, targetScrollTop);
+      const sweepEnd =
+        Math.max(scroller.scrollTop, targetScrollTop) + scroller.clientHeight;
+      const focusCandidates = elements
+        .map((element, index) => {
+          const rect = element.getBoundingClientRect();
+          const top = rect.top - scrollerRect.top + scroller.scrollTop;
+          return { element, index, top, bottom: top + rect.height };
+        })
+        .filter(
+          ({ index, top, bottom }) =>
+            (direction < 0 ? index < currentIndex : index > currentIndex) &&
+            bottom > sweepStart &&
+            top < sweepEnd,
+        );
+      const nextFocus =
+        direction < 0
+          ? focusCandidates.at(-1)
+          : focusCandidates.at(0);
+
+      if (nextFocus) {
+        setFocusedId(nextFocus.element.dataset.chatFocus);
+        if (nextFocus.top < targetScrollTop)
+          targetScrollTop = nextFocus.top;
+        else if (nextFocus.bottom > targetScrollTop + scroller.clientHeight)
+          targetScrollTop = nextFocus.bottom - scroller.clientHeight;
+      }
+
+      scroller.scrollTo({
+        top: Math.max(0, Math.min(maxScrollTop, targetScrollTop)),
+        behavior: "smooth",
+      });
+    },
+    [focusedId],
+  );
 
   const moveFocus = useCallback(
     (direction) => {
